@@ -25,7 +25,7 @@
      - ?
      - ?
  - Prepare vm parameters
-   - vm instant name
+   - vm instance name
    - vm cpu vcpu
    - vm mem
    - vm network config
