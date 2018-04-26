@@ -3,7 +3,7 @@
 ## Why?
  There are some automated tests related to windows OS in our work. So we need to find ways to automate the installation and configuration of the windows OS, that's it.
  
- Actually this project is a reconstruction of https://github.com/richm/auto-win-vm-ad and aims to provide a more user-friendly user interface.
+ Actually this project is a reconstruction of https://github.com/richm/auto-win-vm-ad and aims to provide a more clear user interface.
  
 ## steps:
  - Download a windows ISO file
