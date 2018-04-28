@@ -4,4 +4,4 @@ echo installing chocolatey package manager
 echo installing openssh
 choco install openssh -params '"/SSHServerFeature"' -y
 
-@ANS_FILE_DRIVE_LETTER@\nextscript.cmd 2
+@ANSF_DRIVE_LETTER@\nextscript.cmd 2

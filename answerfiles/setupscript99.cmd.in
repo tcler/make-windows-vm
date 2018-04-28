@@ -1,2 +1,2 @@
-copy @ANS_FILE_DRIVE_LETTER@\nextscript.cmd @VM_WAIT_FILE@
+copy @ANSF_DRIVE_LETTER@\nextscript.cmd C:\@INSTALL_COMPLETE@
 echo setup is complete

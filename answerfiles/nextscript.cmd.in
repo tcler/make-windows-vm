@@ -5,8 +5,8 @@ set max=99
 set nextscript=
 echo off
 for /L %%i in (%next%,1,%max%) do (
-    if EXIST @ANS_FILE_DRIVE_LETTER@\setupscript%%i.cmd (
-        set nextscript=@ANS_FILE_DRIVE_LETTER@\setupscript%%i.cmd
+    if EXIST @ANSF_DRIVE_LETTER@\setupscript%%i.cmd (
+        set nextscript=@ANSF_DRIVE_LETTER@\setupscript%%i.cmd
         set idx=%%i
         goto runscript
     )

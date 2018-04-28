@@ -7,7 +7,7 @@ netsh advfirewall set AllProfiles state off
 echo enabling remote desktop
 reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
 echo saving network connection details
-ipconfig > C:\ipconfig.log
+ipconfig > C:\@IPCONFIG_LOG@
 
 echo disabling IE ESC
 rem disable IE ESC
@@ -26,7 +26,7 @@ echo. >> %windir%\system32\drivers\etc\hosts
 echo 192.168.122.1 @VIRTHOST@ >> %windir%\system32\drivers\etc\hosts
 
 echo disabling DNS registration on the network interface 
-@powershell -NoProfile -ExecutionPolicy Bypass -Command @ANS_FILE_DRIVE_LETTER@\dnsreg.ps1
+@powershell -NoProfile -ExecutionPolicy Bypass -Command @ANSF_DRIVE_LETTER@\dnsreg.ps1
 
-@ANS_FILE_DRIVE_LETTER@\nextscript.cmd 0
+@ANSF_DRIVE_LETTER@\nextscript.cmd 0
 

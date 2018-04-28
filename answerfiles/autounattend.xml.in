@@ -21,7 +21,7 @@ Sample answer file for headless deployment
             </OOBE>
             <FirstLogonCommands>
                 <SynchronousCommand wcm:action="add">
-                    <CommandLine>cmd /c @ANS_FILE_DRIVE_LETTER@\postinstall.cmd > c:\postinstall.log 2>&1</CommandLine>
+                    <CommandLine>cmd /c @ANSF_DRIVE_LETTER@\postinstall.cmd > c:\postinstall.log 2>&1</CommandLine>
                     <Order>1</Order>
                     <Description>Run Post-Install commands</Description>
                 </SynchronousCommand>
