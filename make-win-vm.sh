@@ -135,8 +135,7 @@ DEFAULT_IF=$(ip -4 route get 1 | head -n 1 | awk '{print $5}')
 		fi
 		systemctl restart network > /dev/null 2>&1
 	fi
-	local bridge="--network bridge=br0,model=rtl8139,mac=$VM_EXT_MAC"
-	echo $bridge
+	BRIDGE="--network bridge=br0,model=rtl8139,mac=$VM_EXT_MAC"
 }
 
 # Parameters
