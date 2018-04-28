@@ -7,7 +7,7 @@
 
 ## dependencies install
 ```
-sudo yum install libvirt libvirt-client virt-install libguestfs-tools-c qemu-kvm openldap-clients genisoimage
+sudo yum install libvirt libvirt-client virt-install libguestfs-tools-c qemu-kvm openldap-clients genisoimage unix2dos
 ```
  
 ## steps:

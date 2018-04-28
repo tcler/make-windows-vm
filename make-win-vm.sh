@@ -202,17 +202,19 @@ case "$ANSF_MEDIA_TYPE" in
 	genisoimage -iso-level 4 -J -l -R -o $ANSF_CDROM $media_mp
 	;;
 esac
+rm -rf $media_mp
 
 # Place libguestfs temporary files in properly labeled dir
 TMPDIR="/tmp/libguestfs"
 export TMPDIR
-mkdir $TMPDIR
+mkdir -p $TMPDIR
 chcon -t svirt_tmp_t $TMPDIR
 
 # Execute virt-install command with the parameters given
 virt-install --connect=qemu:///system --hvm \
 		--clock offset=utc \
-		--accelerate --name "$VM_NAME" --ram=$VM_RAM --vcpu=$VM_CPUS --cpu host,-invtsc \
+		--accelerate --name "$VM_NAME" \
+		--ram=${VM_RAM:-2048} --vcpu=${VM_CPUS:-2} --cpu host,-invtsc \
 		--disk path=$WIN_ISO,device=cdrom \
 		--vnc --os-variant ${VM_OS_VARIANT} \
 		--serial file,path=$SERIAL_PATH --serial pty \
