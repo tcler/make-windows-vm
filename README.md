@@ -7,7 +7,8 @@
 
 ## dependencies install
 ```
-sudo yum install libvirt libvirt-client virt-install libguestfs-tools-c qemu-kvm openldap-clients genisoimage unix2dos
+sudo yum install  https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+sudo yum install libvirt libvirt-client virt-install libguestfs-tools-c qemu-kvm openldap-clients genisoimage virt-viewer unix2dos ntfs-3g
 ```
  
 ## steps:
