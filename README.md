@@ -10,6 +10,11 @@
 sudo yum install  https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 sudo yum install libvirt libvirt-client virt-install libguestfs-tools-c qemu-kvm openldap-clients genisoimage virt-viewer unix2dos ntfs-3g
 ```
+
+## example
+```
+sudo ./make-win-vm.sh --image /var/lib/libvirt/images/en*.iso --product-key W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9 --domain ad.test --vm-name win2012r2 -p asd123 -t cdrom --os-variant win2k8 --cpus 2 --ram 2048 --disk-size 16  answerfiles/*.in
+```
  
 ## steps:
  - Download a windows ISO file
