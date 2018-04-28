@@ -1,0 +1,4 @@
+echo Setup AD as Domain Controller
+rem %SystemRoot%\System32\dcpromo.exe /unattend:@ANS_FILE_DRIVE_LETTER@\dcinstall.ini > c:\dcinstall.log 2>&1
+powershell -executionpolicy bypass -file @ANS_FILE_DRIVE_LETTER@\setupad.ps1
+@ANS_FILE_DRIVE_LETTER@\nextscript.cmd 3 "Reboot to complete Active Directory setup"

@@ -1,0 +1,285 @@
+#!/bin/bash
+
+# ====================================================================
+# Usage
+# ====================================================================
+Usage() {
+cat <<EOF
+Usage: run.sh [OPTION]...
+
+	-b, --bridge
+		Use traditional bridge interface br0. Not recommended.
+
+	-i, --image </path/to/image>
+		Specify the path to windows image.
+
+	-n, --vm_name <VM_NAME>
+		Specify the vm guest's name.
+
+	-p, --path </path/to/script>
+		Specify the path to addtional powershell script
+
+	-t --ans-file-media-type <cdrom|floppy>
+		Specify the answerfiles media type loaded to KVM.
+
+	--admin-password <password>
+		Specify Adminstrator's password for windows.
+
+	--product-key
+		Prodcut key for windows activation.
+
+	--domain
+		Specify windows domain name.
+
+	--ad-forest-level
+		Specify active directory forest level.
+
+	--ad-domain-level
+		Specify active directory domain level.
+
+	--ram
+		VM's ram size
+
+	--cpus
+		Numbers of cpu cores for VM.
+
+	--disk-size
+		VM disk size, in .qcow2 format.
+
+	--os-variant
+		Specify os variant in for VM.
+
+	--timeout
+		Set waiting timeout for installation.
+	
+	-h, --help
+		Display this help.
+
+EOF
+}
+
+
+# ====================================================================
+# Setup_bridge
+# ====================================================================
+setup_bridge() {
+	if [ $DEFAULT_IF != "br0" ]; then
+		local network_path="/etc/sysconfig/network-scripts"
+		echo -e "TYPE=Bridge\nBOOTPROTO=dhcp\nDEVICE=br0\nONBOOT=yes" \
+			> $network_path/ifcfg-br0
+		grep br0 $network_path/ifcfg-$DEFAULT_IF
+		if [ $? -ne 0 ]; then
+			echo "BRIDGE=br0" >> $network_path/ifcfg-$DEFAULT_IF
+		fi
+		systemctl restart network > /dev/null 2>&1
+	fi
+	local bridge="--network bridge=br0,model=rtl8139,mac=$VM_EXT_MAC"
+	echo $bridge
+}
+
+# ====================================================================
+# Add_extra_script
+# ====================================================================
+add_extra_script() {
+	if [ -n "$EXTRA_SCRIPT" ]; then
+		cp $EXTRA_SCRIPT $ANS_FILE_DIR/`basename $EXTRA_SCRIPT`.in
+		echo "powershell -executionpolicy bypass -file @ANS_FILE_DRIVE_LETTER@\\`basename $EXTRA_SCRIPT`" > $ANS_FILE_DIR/setupscript5.cmd.in
+		echo "@ANS_FILE_DRIVE_LETTER@\\nextscript.cmd 6" >> $ANS_FILE_DIR/setupscript5.cmd.in
+	fi
+}
+
+# ====================================================================
+# Process answerfiles
+# ====================================================================
+process_ansf() {
+	local staging="$1"
+	local ansf_drive_letter="$2"
+	local outfile=
+	local err=
+	for file in $ANS_FILE_DIR/*; do
+		if [ ! -f "$file" ]; then
+			continue;
+		fi
+		outfile=$staging/`basename $file .in`
+		if [[ $file = *.in ]]; then
+			sed -e "s/@ADMINPASSWORD@/$ADMINPASSWORD/g" \
+				-e "s/@ADMINNAME@/$ADMINNAME/g" \
+				-e "s/@AD_DOMAIN@/$DOMAIN/g" \
+				-e "s/@NETBIOS_NAME@/$NETBIOS_NAME/g" \
+				-e "s/@VM_NAME@/$VM_NAME/g" \
+				-e "s/@FQDN@/$FQDN/g" \
+				-e "s/@PRODUCT_KEY@/$PRODUCT_KEY/g" \
+				-e "s/@ANS_FILE_DRIVE_LETTER@/$ansf_drive_letter/g" \
+				-e "s/@VM_WAIT_FILE@/$VM_WAIT_FILE/g" \
+				-e "s/@AD_FOREST_LEVEL@/$AD_FOREST_LEVEL/g" \
+				-e "s/@AD_DOMAIN_LEVEL@/$AD_DOMAIN_LEVEL/g" \
+				-e "s/@MAC_DISABLE@/$MAC_DISABLE/g" \
+				-e "s/@DNS_IF_MAC@/$DNS_IF_MAC/g" \
+				-e "s/@VIRTHOST@/$VIRTHOST/g"\
+				$file > $outfile || err=$?
+		else
+			cp -p $file $outfile || err=$?
+		fi
+		if [ -n "$err" ]; then
+			echo erro $err copying $file to $outfile
+			exit 1
+		fi
+	done
+	# Convert files to windows format
+	unix2dos $staging/*
+}
+
+# ====================================================================
+# Generate cdrom/floppy of answerfiles
+# ====================================================================
+make_ansf() {
+	local staging=`mktemp -d`
+	local ansf_drive_letter=
+
+	if [ "$ANSF_MEDIA_TYPE" = "floppy" ]; then
+		ansf_drive_letter="A:"
+		if [ ! -f $ANSF_FLOPPY ]; then
+			mkfs.vfat -C $ANSF_FLOPPY 1440 || { echo error $? from mkfs.vfat -C $ANSF_FLOPPY 1440; exit 1; }
+		fi
+		mount -o loop -t vfat $ANSF_FLOPPY $staging
+	else
+		ansf_drive_letter="E:"
+	fi
+
+	process_ansf $staging $ansf_drive_letter
+
+	if [ "ANSF_MEDIA_TYPE" = "floppy" ]; then
+		umount $staging
+	else
+		rm -rf $ANSF_CDROM
+		genisoimage -iso-level 4 -J -l -R -o $ANSF_CDROM $staging
+	fi
+
+}
+
+# ====================================================================
+# Generate a random mac address with 54:52:00: prefix
+# ====================================================================
+gen_virt_mac() {
+    echo 54:52:00:${1:-00}$(od -txC -An -N2 /dev/random | tr \  :)
+}
+
+# ====================================================================
+# Default: 192.168.122.100, 
+# but if it's used, just plus 1
+# (i.e. 192.168.122.101 etc.)
+# ====================================================================
+gen_ip() {
+	if [ -e /tmp/last_ip ]; then
+		local ip=$(cat /tmp/last_ip)
+		let "ip++"
+	else
+		ip=100
+	fi
+	echo $ip > /tmp/last_ip
+	echo 192.168.122.$ip
+}
+
+# ====================================================================
+# To check whether the installation is done
+# ====================================================================
+wait_for_completion() {
+	local slash='\\'
+	local my_wait_file=`echo "$VM_WAIT_FILE" | tr -s "$slash" /`
+	local ii=$VM_TIMEOUT
+	while [ $ii -gt 0 ] ; do
+		if virt-cat -d $VM_NAME -m /dev/sdb1 "$my_wait_file" > /dev/null 2>&1 ; then
+			return 0
+		fi
+		ii=`expr $ii - 1`
+		echo waiting for completion
+		sleep 60
+	done
+	echo Error: $VM_NAME $VM_WAIT_FILE not found after $VM_TIMEOUT minutes
+	return 1
+}
+
+# ====================================================================
+# Fetch the external ip address from windows
+# for machine from outside to reach it
+# ====================================================================
+get_external_ip() {
+	local ipconfig="/ipconfig.log"
+	local vm_ext_ip=$(virt-cat -d $VM_NAME -m /dev/sdb1 $ipconfig | grep "IPv4 Address" | grep -v "192.168.122" | grep -Eo '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
+	echo $vm_ext_ip
+}
+
+# ====================================================================
+# When installation is done, test AD connection and get AD CA cert
+# ====================================================================
+get_cert() {
+        local ldapreqcert=never
+        local lmhn=`echo $FQDN | sed -e 's/^\([^.]*\).*$/\1/'`
+	local lmdn=`echo $DOMAIN | sed -e 's/^\([^.]*\).*$/\1/'`
+        local ca_name="$lmdn-$lmhn-ca"
+        local ad_suffix=`echo $DOMAIN | sed -e 's/^/dc=/' -e 's/\./,dc=/g'`
+        local ca_cert_dn="cn=$ca_name,cn=certification authorities,cn=public key services,cn=services,cn=configuration,$ad_suffix"
+        local tmp_cacert=/tmp/cacert.`date +'%Y%m%d%H%M%S'`.$$.pem
+        local win_ca_cert_file=/var/www/html/$VM_NAME.crt
+        local admin_dn="cn=$ADMINNAME,cn=users,$ad_suffix"
+	local ldapurl=
+
+        if [ -z "$BRIDGE" ]; then
+                ldapurl="ldap://$VM_IP"
+        else
+                ldapurl="ldap://$VM_EXT_IP"
+        fi
+
+        echo "-----BEGIN CERTIFICATE-----" > $tmp_cacert
+	ldapsearch -xLLL -H $ldapurl -D "$admin_dn" -w "$ADMINPASSWORD" -s base \
+			-b "$ca_cert_dn" "objectclass=*" cACertificate | perl -p0e 's/\n //g' | \
+			sed -e '/^cACertificate/ { s/^cACertificate:: //; s/\(.\{1,64\}\)/\1\n/g; p }' -e 'd' | \
+			grep -v '^$' >> $tmp_cacert
+	echo "-----END CERTIFICATE-----" >> $tmp_cacert
+	echo Now test our CA cert
+	if LDAPTLS_REQCERT=$ldapreqcert LDAPTLS_CACERT=$tmp_cacert ldapsearch -xLLL -ZZ -H $ldapurl \
+		-D "$admin_dn" -w "$ADMINPASSWORD" -s base -b "" \
+                "objectclass=*" currenttime > /dev/null 2>&1; then
+                echo Success - the CA cert in $tmp_cacert is working
+        else
+                echo Error: the CA cert in $tmp_cacert is not working
+                LDAPTLS_REQCERT=$ldapreqcert LDAPTLS_CACERT=$tmp_cacert ldapsearch -d 1 -xLLL -ZZ -H $ldapurl -s base \
+                -b "" "objectclass=*" currenttime
+        fi  
+        cp -p $tmp_cacert $win_ca_cert_file
+        rm -f $tmp_cacert
+}
+
+# ====================================================================
+# Also save other variables into a log file
+# ====================================================================
+save_ad_env() {
+	local vm_env="/var/www/html/$VM_NAME.env"
+	cat <<- EOF > $vm_env
+		VM_NAME=$VM_NAME
+		VM_IP=$VM_IP
+		VM_EXT_IP=$VM_EXT_IP
+		ADMINNAME=$ADMINNAME
+		ADMINPASSWORD=$ADMINPASSWORD
+		DOMAIN=$DOMAIN
+		FQDN=$FQDN
+		NETBIOS_NAME=$NETBIOS_NAME
+	EOF
+}
+
+# ====================================================================
+# Eject CDs
+# ====================================================================
+eject_cds() {
+	local vm_cd_name=$(virsh domblklist "$VM_NAME" | grep "$WIN_ISO" | awk '{print $1}')
+	local vm_media_name
+	local ansf_media=
+	case $ANSF_MEDIA_TYPE in
+		floppy) ansf_media=$ANSF_FLOPPY;;
+		cdrom) ansf_media=$ANSF_CDROM;;
+	esac
+	vm_media_name=$(virsh domblklist "$VM_NAME" | grep "$ansf_media" | awk '{print $1}')
+	virsh change-media "$VM_NAME" "$vm_cd_name" --eject
+	virsh change-media "$VM_NAME" "$vm_media_name" --eject
+}
+

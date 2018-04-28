@@ -1,0 +1,2 @@
+copy @ANS_FILE_DRIVE_LETTER@\nextscript.cmd @VM_WAIT_FILE@
+echo setup is complete

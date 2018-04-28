@@ -1,0 +1,33 @@
+rem echo in %0
+set next=%1
+set reboot=%~2
+set max=99
+set nextscript=
+echo off
+for /L %%i in (%next%,1,%max%) do (
+    if EXIST @ANS_FILE_DRIVE_LETTER@\setupscript%%i.cmd (
+        set nextscript=@ANS_FILE_DRIVE_LETTER@\setupscript%%i.cmd
+        set idx=%%i
+        goto runscript
+    )
+)
+echo on
+echo No more scripts
+
+:runscript
+echo on
+if DEFINED reboot (
+    if DEFINED nextscript (
+        rem echo setup runonce for %nextscript%
+        reg add HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\RunOnce /v SetupPass%idx% /t REG_SZ /d "cmd /c %nextscript% > c:\setuppass%idx%.log 2>&1"
+    )
+    echo %reboot%
+    shutdown -r -f -t 60 -c "Shutting down in 1 minute %reboot%"
+    rem echo reboot in 1 minute
+) else (
+    if DEFINED nextscript (
+        rem no reboot - just call the next script
+        echo run %nextscript%
+        call %nextscript% > c:\setuppass%idx%.log 2>&1
+    )
+)

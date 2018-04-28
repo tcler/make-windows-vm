@@ -1,0 +1,1 @@
+(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@MAC_DISABLE@'").SetDynamicDNSRegistration($false,$false)
