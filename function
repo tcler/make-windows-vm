@@ -51,40 +51,40 @@ eject_cds() {
 # When installation is done, test AD connection and get AD CA cert
 # ====================================================================
 get_cert() {
-        local ldapreqcert=never
-        local lmhn=${FQDN%%.*}
+	local ldapreqcert=never
+	local lmhn=${FQDN%%.*}
 	local lmdn=${DOMAIN%%.*}
-        local ca_name="$lmdn-$lmhn-ca"
-        local ad_suffix="dc=${DOMAIN//./,dc=}"
-        local ca_cert_dn="cn=$ca_name,cn=certification authorities,cn=public key services,cn=services,cn=configuration,$ad_suffix"
+	local ca_name="$lmdn-$lmhn-ca"
+	local ad_suffix="dc=${DOMAIN//./,dc=}"
+	local ca_cert_dn="cn=$ca_name,cn=certification authorities,cn=public key services,cn=services,cn=configuration,$ad_suffix"
 	local tmp_cacert=/tmp/cacert.$(date +%Y%m%d%H%M%S).$$.pem
-        local win_ca_cert_file=/var/www/html/$VM_NAME.crt
-        local admin_dn="cn=$ADMINNAME,cn=users,$ad_suffix"
+	local win_ca_cert_file=/tmp/$VM_NAME.crt
+	local admin_dn="cn=$ADMINNAME,cn=users,$ad_suffix"
 	local ldapurl=
 
-        if [ -z "$BRIDGE" ]; then
-                ldapurl="ldap://$VM_IP"
-        else
-                ldapurl="ldap://$VM_EXT_IP"
-        fi
+	if [ -z "$BRIDGE" ]; then
+		ldapurl="ldap://$VM_IP"
+	else
+		ldapurl="ldap://$VM_EXT_IP"
+	fi
 
-        echo "-----BEGIN CERTIFICATE-----" > $tmp_cacert
+	echo "-----BEGIN CERTIFICATE-----" > $tmp_cacert
 	ldapsearch -xLLL -H $ldapurl -D "$admin_dn" -w "$ADMINPASSWORD" -s base \
 			-b "$ca_cert_dn" "objectclass=*" cACertificate | perl -p0e 's/\n //g' | \
 			sed -e '/^cACertificate/ { s/^cACertificate:: //; s/\(.\{1,64\}\)/\1\n/g; p }' -e 'd' | \
 			grep -v '^$' >> $tmp_cacert
 	echo "-----END CERTIFICATE-----" >> $tmp_cacert
 	echo Now test our CA cert
-	if LDAPTLS_REQCERT=$ldapreqcert LDAPTLS_CACERT=$tmp_cacert ldapsearch -xLLL -ZZ -H $ldapurl \
-		-D "$admin_dn" -w "$ADMINPASSWORD" -s base -b "" \
-                "objectclass=*" currenttime > /dev/null 2>&1; then
-                echo Success - the CA cert in $tmp_cacert is working
-        else
-                echo Error: the CA cert in $tmp_cacert is not working
-                LDAPTLS_REQCERT=$ldapreqcert LDAPTLS_CACERT=$tmp_cacert ldapsearch -d 1 -xLLL -ZZ -H $ldapurl -s base \
-                -b "" "objectclass=*" currenttime
-        fi  
-        cp -p $tmp_cacert $win_ca_cert_file
-        rm -f $tmp_cacert
+
+	export LDAPTLS_REQCERT=$ldapreqcert
+	export LDAPTLS_CACERT=$tmp_cacert
+	if ldapsearch -xLLL -ZZ -H $ldapurl -D "$admin_dn" -w "$ADMINPASSWORD" -s base -b "" "objectclass=*" currenttime > /dev/null 2>&1; then
+		echo Success - the CA cert in $tmp_cacert is working
+	else
+		echo Error: the CA cert in $tmp_cacert is not working
+		ldapsearch -d 1 -xLLL -ZZ -H $ldapurl -s base -b "" "objectclass=*" currenttime
+	fi  
+	cp -p $tmp_cacert $win_ca_cert_file
+	rm -f $tmp_cacert
 }
 
