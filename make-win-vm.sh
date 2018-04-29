@@ -125,8 +125,9 @@ systemctl restart virtlogd.service
 # ====================================================================
 DEFAULT_IF=$(ip -4 route get 1 | head -n 1 | awk '{print $5}')
 [[ "$brgmode" = yes ]] && {
+	echo "{INFO} bridge mode setup ..."
 	if [ $DEFAULT_IF != "br0" ]; then
-		local network_path="/etc/sysconfig/network-scripts"
+		network_path="/etc/sysconfig/network-scripts"
 		echo -e "TYPE=Bridge\nBOOTPROTO=dhcp\nDEVICE=br0\nONBOOT=yes" \
 			> $network_path/ifcfg-br0
 		grep br0 $network_path/ifcfg-$DEFAULT_IF
@@ -153,6 +154,7 @@ VIRTHOST=$(hostname -f)
 
 # Update KVM network configuration
 if [ -z "$BRIDGE" ]; then
+	echo "{INFO} virsh net-update ..."
 	virsh net-update $VM_NETWORK_NAME delete ip-dhcp-host "<host ip='"$VM_IP"' />" --live --config
 	virsh net-update $VM_NETWORK_NAME add ip-dhcp-host "<host mac='"$VM_MAC"' name='"$VM_NAME"' ip='"$VM_IP"' />" --live --config
 fi
@@ -183,6 +185,7 @@ process_ansf() {
 	unix2dos $destdir/*
 }
 
+echo "{INFO} make answer file media ..."
 rm -rf $ANSF_FLOPPY $ANSF_CDROM  #remove old/exist media file
 media_mp=$(mktemp -d)
 case "$ANSF_MEDIA_TYPE" in
@@ -210,6 +213,7 @@ mkdir -p $TMPDIR
 chcon -t svirt_tmp_t $TMPDIR
 
 # Execute virt-install command with the parameters given
+echo "{INFO} virt-install ..."
 virt-install --connect=qemu:///system --hvm \
 		--clock offset=utc \
 		--accelerate --name "$VM_NAME" \
@@ -223,6 +227,7 @@ virt-install --connect=qemu:///system --hvm \
 		|| { echo error $? from virt-install ; exit 1 ; }
 
 # To check whether the installation is done
+echo "{INFO} waiting install done ..."
 success=no
 local t=${VM_TIMEOUT:-60}
 while ((t-- > 0)) ; do
@@ -239,9 +244,11 @@ done
 # Post Setup
 # =======================================================================
 # When installation is done, test AD connection and get AD CA cert
+echo "{INFO} get cert test ..."
 get_cert
 
 # Eject CDs
+echo "{INFO} eject media ..."
 eject_cds $VM_NAME  $WIN_ISO $ANSF_MEDIA_PATH
 
 # Save relative variables info a log file
