@@ -229,7 +229,7 @@ virt-install --connect=qemu:///system --hvm \
 # To check whether the installation is done
 echo "{INFO} waiting install done ..."
 success=no
-local t=${VM_TIMEOUT:-60}
+t=${VM_TIMEOUT:-60}
 while ((t-- > 0)) ; do
 	virt-cat -d $VM_NAME -m /dev/sdb1 "/$INSTALL_COMPLETE" > /dev/null 2>&1 && {
 		success=yes; break;
