@@ -186,7 +186,8 @@ process_ansf() {
 		-e "s/@VIRTHOST@/$VIRTHOST/g" \
 		-e "s/@IPCONFIG_LOG@/$IPCONFIG_LOG/g" \
 		$destdir/*
-	unix2dos $destdir/*
+	unix2dos $destdir/* >/dev/null
+	dos2unix $destdir/*.xml >/dev/null
 }
 
 echo -e "\n{INFO} make answer file media ..."
