@@ -1,2 +1,2 @@
-powershell -executionpolicy bypass -file @ANSF_DRIVE_LETTER@\setupkrb.ps1.in
+powershell -executionpolicy bypass -file @ANSF_DRIVE_LETTER@\setupkrb.ps1
 @ANSF_DRIVE_LETTER@\nextscript.cmd 6
