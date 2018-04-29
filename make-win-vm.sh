@@ -186,7 +186,7 @@ process_ansf() {
 }
 
 echo "{INFO} make answer file media ..."
-rm -rf $ANSF_FLOPPY $ANSF_CDROM  #remove old/exist media file
+rm -f $ANSF_FLOPPY $ANSF_CDROM  #remove old/exist media file
 media_mp=$(mktemp -d)
 case "$ANSF_MEDIA_TYPE" in
 "floppy")
@@ -214,6 +214,7 @@ chcon -t svirt_tmp_t $TMPDIR
 
 # Execute virt-install command with the parameters given
 echo "{INFO} virt-install ..."
+rm -f $VM_IMAGE
 virt-install --connect=qemu:///system --hvm --clock offset=utc \
 	--accelerate --cpu host,-invtsc \
 	--name "$VM_NAME" --ram=${VM_RAM:-2048} --vcpu=${VM_CPUS:-2} \
@@ -223,7 +224,6 @@ virt-install --connect=qemu:///system --hvm --clock offset=utc \
 	--disk path=$VM_IMAGE,bus=ide,size=$VM_DISKSIZE,format=qcow2,cache=none \
 	--serial file,path=$SERIAL_PATH --serial pty \
 	$VM_NET_OPT \
-	--noautoconsole \
 	--vnc --vnclisten 0.0.0.0 --vncport 7788 || { echo error $? from virt-install ; exit 1 ; }
 
 # To check whether the installation is done
@@ -231,7 +231,7 @@ echo "{INFO} waiting install done ..."
 success=no
 t=${VM_TIMEOUT:-60}
 while ((t-- > 0)) ; do
-	virt-cat -d $VM_NAME -m /dev/sdb1 "/$INSTALL_COMPLETE" > /dev/null 2>&1 && {
+	virt-cat -d $VM_NAME "/$INSTALL_COMPLETE" > /dev/null 2>&1 && {
 		success=yes; break;
 	}
 	sleep 1m
@@ -252,7 +252,7 @@ echo "{INFO} eject media ..."
 eject_cds $VM_NAME  $WIN_ISO $ANSF_MEDIA_PATH
 
 # Save relative variables info a log file
-VM_EXT_IP=$(virt-cat -d $VM_NAME -m /dev/sdb1 /$IPCONFIG_LOG |
+VM_EXT_IP=$(virt-cat -d $VM_NAME /$IPCONFIG_LOG |
 	grep IPv4.Address | grep -v 192.168.122 |
 	egrep -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
 VM_INFO_FILE=/tmp/$VM_NAME.info
