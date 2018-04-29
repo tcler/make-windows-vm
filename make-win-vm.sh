@@ -220,8 +220,8 @@ virt-install --connect=qemu:///system --hvm --clock offset=utc \
 	--name "$VM_NAME" --ram=${VM_RAM:-2048} --vcpu=${VM_CPUS:-2} \
 	--os-variant ${VM_OS_VARIANT} \
 	--disk path=$WIN_ISO,device=cdrom \
-	--disk path=$ANSF_MEDIA_PATH,device=$ANSF_MEDIA_TYPE \
 	--disk path=$VM_IMAGE,bus=ide,size=$VM_DISKSIZE,format=qcow2,cache=none \
+	--disk path=$ANSF_MEDIA_PATH,device=$ANSF_MEDIA_TYPE \
 	--serial file,path=$SERIAL_PATH --serial pty \
 	$VM_NET_OPT \
 	--vnc --vnclisten 0.0.0.0 --vncport 7788 || { echo error $? from virt-install ; exit 1 ; }

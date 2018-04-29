@@ -42,7 +42,7 @@ eject_cds() {
 	local media_list="$@"
 
 	for media in $media_list; do
-		vm_media=$(virsh domblklist "$vm_name" | grep "$ansf_media" | awk '{print $1}')
+		vm_media=$(virsh domblklist "$vm_name" | awk -v media=$media '$2==media {print $1}')
 		virsh change-media "$vm_name" "$vm_media" --eject
 	done
 }
