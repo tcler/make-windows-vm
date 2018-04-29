@@ -86,8 +86,13 @@ while true; do
 	esac
 done
 
-[[ -z "$WIN_ISO" || -z "$PRODUCT_KEY" || -z "$ADMINPASSWORD" || 
-   -z "$VM_NAME" || -z "$VM_OS_VARIANT" ]] && {
+[[ "$VM_OS_VARIANT" = win2k12r2 ]] &&
+	AD_FOREST_LEVEL=${AD_FOREST_LEVEL:-Win2012R2}
+AD_DOMAIN_LEVEL=${AD_DOMAIN_LEVEL:-$AD_FOREST_LEVEL}
+
+[[ -z "$WIN_ISO" || -z "$PRODUCT_KEY" || -z "$ADMINPASSWORD" ||
+   -z "$VM_NAME" || -z "$VM_OS_VARIANT" ||
+   -z "$AD_FOREST_LEVEL" || -z "$AD_DOMAIN_LEVEL" ]] && {
 	Usage
 	exit 1
 }
@@ -111,7 +116,7 @@ DNS_IF_MAC=$VM_EXT_MAC
 MAC_DISABLE=$VM_MAC
 
 # Setup Active Directory
-FQDN=${FQDN:-$GUEST_HOSTNAME.$DOMAIN}
+FQDN=$GUEST_HOSTNAME.$DOMAIN
 NETBIOS_NAME=$(echo ${DOMAIN//./} | tr '[a-z]' '[A-Z]')
 
 # =======================================================================

@@ -14,10 +14,16 @@ sudo yum install libvirt libvirt-client virt-install virt-viewer qemu-kvm \
 
 ## example
 ```
-sudo ./make-win-vm.sh --image /var/lib/libvirt/images/en*.iso --product-key W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9 --domain ad.test --vm-name win2012r2 -p asd123 --os-variant win2k12r2 --cpus 2 --ram 2048 --disk-size 16  answerfiles/* -t floppy
+# vmname=win2012r2-yjh
+# virsh undefine $vmname; virsh destroy $vmname
+# ./make-win-vm.sh --image /var/lib/libvirt/images/en*.iso --product-key W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9 --domain ad.test --vm-name $vmname -p  ~Ocgxyz  --os-variant win2k12r2 --cpus 2 --ram 2048 --disk-size 20  answerfiles/* -b --vncport 7799 --ad-forest-level Win2012R2
 
+# tip 1:
 # because libguestfs can't mount ntfs after RHEL-7.2. so please use floppy as answer file media type,
 # thus we can write info on floppy instead and still could read them from host.
+
+# tip 2:
+# if passwd is too week will cause failure to setup AD
 ```
  
 ## steps:
