@@ -1,1 +1,1 @@
-powershell -executionpolicy bypass ksetup.exe /AddKDC @NETBIOS_NAME@ @VM_FQDN@
+powershell -executionpolicy bypass ksetup.exe /AddKDC @NETBIOS_NAME@ @FQDN@
