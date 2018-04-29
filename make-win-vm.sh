@@ -125,7 +125,7 @@ systemctl restart virtlogd.service
 # ====================================================================
 DEFAULT_IF=$(ip -4 route get 1 | head -n 1 | awk '{print $5}')
 [[ "$brgmode" = yes ]] && {
-	echo "{INFO} bridge mode setup ..."
+	echo -e "\n{INFO} bridge mode setup ..."
 	if [ $DEFAULT_IF != "br0" ]; then
 		network_path="/etc/sysconfig/network-scripts"
 		echo -e "TYPE=Bridge\nBOOTPROTO=dhcp\nDEVICE=br0\nONBOOT=yes" \
@@ -155,7 +155,7 @@ VIRTHOST=$(hostname -f)
 
 # Update KVM network configuration
 if [ -z "$VM_NET_OPT_BRIDGE" ]; then
-	echo "{INFO} virsh net-update ..."
+	echo -e "\n{INFO} virsh net-update ..."
 	virsh net-update $VM_NETWORK_NAME delete ip-dhcp-host "<host ip='"$VM_IP"' />" --live --config
 	virsh net-update $VM_NETWORK_NAME add ip-dhcp-host "<host mac='"$VM_MAC"' name='"$VM_NAME"' ip='"$VM_IP"' />" --live --config
 fi
@@ -186,7 +186,7 @@ process_ansf() {
 	unix2dos $destdir/*
 }
 
-echo "{INFO} make answer file media ..."
+echo -e "\n{INFO} make answer file media ..."
 rm -f $ANSF_FLOPPY $ANSF_CDROM  #remove old/exist media file
 media_mp=$(mktemp -d)
 case "$ANSF_MEDIA_TYPE" in
@@ -214,7 +214,7 @@ mkdir -p $TMPDIR
 chcon -t svirt_tmp_t $TMPDIR
 
 # Execute virt-install command with the parameters given
-echo "{INFO} virt-install ..."
+echo -e "\n{INFO} virt-install ..."
 rm -f $VM_IMAGE
 virt-install --connect=qemu:///system --hvm --clock offset=utc \
 	--accelerate --cpu host,-invtsc \
@@ -228,7 +228,7 @@ virt-install --connect=qemu:///system --hvm --clock offset=utc \
 	--vnc --vnclisten 0.0.0.0 --vncport 7788 || { echo error $? from virt-install ; exit 1 ; }
 
 # To check whether the installation is done
-echo "{INFO} waiting install done ..."
+echo -e "\n{INFO} waiting install done ..."
 fsdev=/dev/sdb1
 [[ "$ANSF_MEDIA_TYPE" = floppy ]] && fsdev=/dev/sdc
 install_done=no
@@ -240,7 +240,7 @@ while ((t-- > 0)) ; do
 	sleep 1m
 done
 [[ $install_done != yes ]] && {
-	echo "{WARN} Install timeout($VM_TIMEOUT)"
+	echo -e "\n{WARN} Install timeout($VM_TIMEOUT)"
 }
 
 VM_EXT_IP=$(virt-cat -d $VM_NAME -m $fsdev /$IPCONFIG_LOG |
@@ -248,19 +248,22 @@ VM_EXT_IP=$(virt-cat -d $VM_NAME -m $fsdev /$IPCONFIG_LOG |
 	egrep -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
 
 # Eject CDs
-echo "{INFO} eject media ..."
+echo -e "\n{INFO} eject media ..."
 eject_cds $VM_NAME  $WIN_ISO $ANSF_MEDIA_PATH
 
 # =======================================================================
 # Post Setup
 # =======================================================================
 # When installation is done, test AD connection and get AD CA cert
-echo "{INFO} get cert test ..."
-get_cert
+echo -e "\n{INFO} get cert test ..."
+ldapurl=ldap://${VM_EXT_IP}
+[[ -z "$VM_NET_OPT_BRIDGE" ]] && ldapurl=ldap://${VM_IP}
+echo -e "\n{INFO} get_cert $VM_NAME $FQDN $DOMAIN $ADMINNAME:$ADMINPASSWORD $ldapurl"
+get_cert $VM_NAME $FQDN $DOMAIN $ADMINNAME:$ADMINPASSWORD $ldapurl
 
 
 # Save relative variables info a log file
-echo "{INFO} show guest info:"
+echo -e "\n{INFO} show guest info:"
 VM_INFO_FILE=/tmp/$VM_NAME.info
 cat <<-EOF | tee $VM_INFO_FILE
 	VM_NAME=$VM_NAME

@@ -39,40 +39,41 @@ eject_cds() {
 # When installation is done, test AD connection and get AD CA cert
 # ====================================================================
 get_cert() {
+	local vmname=$1
+	local fqdn=$2
+	local domain=$3
+	local user=${4%:*}
+	local passwd=${4#*:}
+	local ldapurl=$5
+
 	local ldapreqcert=never
-	local lmhn=${FQDN%%.*}
-	local lmdn=${DOMAIN%%.*}
+	local lmhn=${fqdn%%.*}
+	local lmdn=${domain%%.*}
 	local ca_name="$lmdn-$lmhn-ca"
-	local ad_suffix="dc=${DOMAIN//./,dc=}"
+	local ad_suffix="dc=${domain//./,dc=}"
 	local ca_cert_dn="cn=$ca_name,cn=certification authorities,cn=public key services,cn=services,cn=configuration,$ad_suffix"
 	local tmp_cacert=/tmp/cacert.$(date +%Y%m%d%H%M%S).$$.pem
-	local win_ca_cert_file=/tmp/$VM_NAME.crt
-	local admin_dn="cn=$ADMINNAME,cn=users,$ad_suffix"
-	local ldapurl=
-
-	if [ -z "$BRIDGE" ]; then
-		ldapurl="ldap://$VM_IP"
-	else
-		ldapurl="ldap://$VM_EXT_IP"
-	fi
+	local win_ca_cert_file=/tmp/$vmname.crt
+	local admin_dn="cn=$user,cn=users,$ad_suffix"
 
 	echo "-----BEGIN CERTIFICATE-----" > $tmp_cacert
-	ldapsearch -xLLL -H $ldapurl -D "$admin_dn" -w "$ADMINPASSWORD" -s base \
+	ldapsearch -xLLL -H $ldapurl -D "$admin_dn" -w "$passwd" -s base \
 			-b "$ca_cert_dn" "objectclass=*" cACertificate | perl -p0e 's/\n //g' | \
 			sed -e '/^cACertificate/ { s/^cACertificate:: //; s/\(.\{1,64\}\)/\1\n/g; p }' -e 'd' | \
 			grep -v '^$' >> $tmp_cacert
 	echo "-----END CERTIFICATE-----" >> $tmp_cacert
+	cat $tmp_cacert
 	echo Now test our CA cert
 
-	export LDAPTLS_REQCERT=$ldapreqcert
 	export LDAPTLS_CACERT=$tmp_cacert
-	if ldapsearch -xLLL -ZZ -H $ldapurl -D "$admin_dn" -w "$ADMINPASSWORD" -s base -b "" "objectclass=*" currenttime > /dev/null 2>&1; then
+	export LDAPTLS_REQCERT=$ldapreqcert
+	if ldapsearch -xLLL -ZZ -H $ldapurl -D "$admin_dn" -w "$passwd" -s base -b "" "objectclass=*" currenttime > /dev/null 2>&1; then
 		echo Success - the CA cert in $tmp_cacert is working
 	else
 		echo Error: the CA cert in $tmp_cacert is not working
 		ldapsearch -d 1 -xLLL -ZZ -H $ldapurl -s base -b "" "objectclass=*" currenttime
 	fi  
-	cp -p $tmp_cacert $win_ca_cert_file
+	\cp -p $tmp_cacert $win_ca_cert_file
 	rm -f $tmp_cacert
 }
 
