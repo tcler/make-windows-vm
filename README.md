@@ -45,3 +45,26 @@ sudo ./make-win-vm.sh --image /var/lib/libvirt/images/en*.iso --product-key W3GG
    - vm mem
    - vm network config
    - vm disk options
+
+
+
+## [0] about libguestfs ntfs
+```
+# ref: http://libguestfs.org/guestfs-faq.1.html
+Cannot open Windows guests which use NTFS.
+
+You see errors like:
+
+ mount: unknown filesystem type 'ntfs'
+
+On Red Hat Enterprise Linux or CentOS < 7.2, you have to install the libguestfs-winsupport package. In RHEL ≥ 7.2, libguestfs-winsupport is part of the base RHEL distribution, but see the next question.
+"mount: unsupported filesystem type" with NTFS in RHEL ≥ 7.2
+
+In RHEL 7.2 we were able to add libguestfs-winsupport to the base RHEL distribution, but we had to disable the ability to use it for opening and editing filesystems. It is only supported when used with virt-v2v(1). If you try to use guestfish(1) or guestmount(1) or some other programs on an NTFS filesystem, you will see the error:
+
+ mount: unsupported filesystem type
+
+This is not a supported configuration, and it will not be made to work in RHEL. Don't bother to open a bug about it, as it will be immediately CLOSED -> WONTFIX.
+
+You may compile your own libguestfs removing this restriction, but that won't be endorsed or supported by Red Hat. 
+```
