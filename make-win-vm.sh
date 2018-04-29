@@ -140,6 +140,7 @@ DEFAULT_IF=$(ip -4 route get 1 | head -n 1 | awk '{print $5}')
 }
 
 # Parameters
+ANSF_MEDIA_TYPE=${ANSF_MEDIA_TYPE:-floppy}
 VM_IMG_DIR=/var/lib/libvirt/images
 ANSF_CDROM=${ANSF_CDROM:-$VM_IMG_DIR/$VM_NAME-ansf-cdrom.iso}
 ANSF_FLOPPY=${ANSF_FLOPPY:-$VM_IMG_DIR/$VM_NAME-ansf-floppy.vfd}
@@ -228,17 +229,27 @@ virt-install --connect=qemu:///system --hvm --clock offset=utc \
 
 # To check whether the installation is done
 echo "{INFO} waiting install done ..."
-success=no
+fsdev=/dev/sdb1
+[[ "$ANSF_MEDIA_TYPE" = floppy ]] && fsdev=/dev/sdc
+install_done=no
 t=${VM_TIMEOUT:-60}
 while ((t-- > 0)) ; do
-	virt-cat -d $VM_NAME "/$INSTALL_COMPLETE" > /dev/null 2>&1 && {
-		success=yes; break;
+	virt-ls -d $VM_NAME -m $fsdev / 2>/dev/null | grep -q "$INSTALL_COMPLETE" && {
+		install_done=yes; break;
 	}
 	sleep 1m
 done
-[[ $success != yes ]] && {
+[[ $install_done != yes ]] && {
 	echo "{WARN} Install timeout($VM_TIMEOUT)"
 }
+
+VM_EXT_IP=$(virt-cat -d $VM_NAME -m $fsdev /$IPCONFIG_LOG |
+	grep IPv4.Address | grep -v 192.168.122 |
+	egrep -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
+
+# Eject CDs
+echo "{INFO} eject media ..."
+eject_cds $VM_NAME  $WIN_ISO $ANSF_MEDIA_PATH
 
 # =======================================================================
 # Post Setup
@@ -247,16 +258,11 @@ done
 echo "{INFO} get cert test ..."
 get_cert
 
-# Eject CDs
-echo "{INFO} eject media ..."
-eject_cds $VM_NAME  $WIN_ISO $ANSF_MEDIA_PATH
 
 # Save relative variables info a log file
-VM_EXT_IP=$(virt-cat -d $VM_NAME /$IPCONFIG_LOG |
-	grep IPv4.Address | grep -v 192.168.122 |
-	egrep -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
+echo "{INFO} show guest info:"
 VM_INFO_FILE=/tmp/$VM_NAME.info
-cat <<- EOF | tee $VM_INFO_FILE
+cat <<-EOF | tee $VM_INFO_FILE
 	VM_NAME=$VM_NAME
 	VM_IP=$VM_IP
 	VM_EXT_IP=$VM_EXT_IP

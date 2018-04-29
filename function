@@ -1,18 +1,6 @@
 #!/bin/bash
 
 # ====================================================================
-# Add_extra_script
-# ====================================================================
-add_extra_script() {
-	local ansf_dir=$1
-	local script=$2
-
-	cp $script $ansf_dir/$(basename $script).in
-	echo "powershell -executionpolicy bypass -file @ANSF_DRIVE_LETTER@\\$(basename $script)" >$ansf_dir/setupscript5.cmd.in
-	echo "@ANSF_DRIVE_LETTER@\\nextscript.cmd 6" >> $ansf_dir/setupscript5.cmd.in
-}
-
-# ====================================================================
 # Generate a random mac address with 54:52:00: prefix
 # ====================================================================
 gen_virt_mac() {

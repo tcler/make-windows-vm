@@ -8,6 +8,7 @@ echo enabling remote desktop
 reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
 echo saving network connection details
 ipconfig > C:\@IPCONFIG_LOG@
+ipconfig > A:\@IPCONFIG_LOG@
 
 echo disabling IE ESC
 rem disable IE ESC
