@@ -33,7 +33,7 @@ Usage: $PEOG [OPTION]...
   --ram         #VM's ram size
   --cpus        #Numbers of cpu cores for VM.
   --disk-size   #VM disk size, in .qcow2 format.
-  --os-variant  #Specify os variant in for VM.
+  --os-variant  #*Specify os variant in for VM.
   -t --ans-file-media-type <cdrom|floppy>
 		#Specify the answerfiles media type loaded to KVM.
   -b, --bridge  #Use traditional bridge interface br0. Not recommended.
@@ -84,7 +84,7 @@ while true; do
 done
 
 [[ -z "$WIN_ISO" || -z "$PRODUCT_KEY" || -z "$ADMINPASSWORD" || 
-   -z "$VM_NAME" ]] && {
+   -z "$VM_NAME" || -z "$VM_OS_VARIANT" ]] && {
 	Usage
 	exit 1
 }
@@ -136,7 +136,7 @@ DEFAULT_IF=$(ip -4 route get 1 | head -n 1 | awk '{print $5}')
 		fi
 		systemctl restart network > /dev/null 2>&1
 	fi
-	BRIDGE="--network bridge=br0,model=rtl8139,mac=$VM_EXT_MAC"
+	VM_NET_OPT_BRIDGE="--network bridge=br0,model=rtl8139,mac=$VM_EXT_MAC"
 }
 
 # Parameters
@@ -146,14 +146,14 @@ ANSF_FLOPPY=${ANSF_FLOPPY:-$VM_IMG_DIR/$VM_NAME-ansf-floppy.vfd}
 VM_IMAGE=${VM_IMAGE:-$VM_IMG_DIR/$VM_NAME.qcow2}
 VM_NETWORK_NAME=default
 VM_IP=$(gen_ip)
-VM_NETWORK_INTERNAL="--network network=$VM_NETWORK_NAME,model=rtl8139,mac=$VM_MAC"
-VM_NETWORK_EXTRA="--network type=direct,source=$DEFAULT_IF,source_mode=vepa,mac=$VM_EXT_MAC"
-VM_NETWORK=${BRIDGE:-"$VM_NETWORK_INTERNAL $VM_NETWORK_EXTRA"}
+VM_NET_OPT_INTERNAL="--network network=$VM_NETWORK_NAME,model=rtl8139,mac=$VM_MAC"
+VM_NET_OPT_EXTRA="--network type=direct,source=$DEFAULT_IF,source_mode=vepa,mac=$VM_EXT_MAC"
+VM_NET_OPT=${VM_NET_OPT_BRIDGE:-"$VM_NET_OPT_INTERNAL $VM_NET_OPT_EXTRA"}
 SERIAL_PATH=/tmp/serial-$(date +%Y%m%d%H%M%S).$$
 VIRTHOST=$(hostname -f)
 
 # Update KVM network configuration
-if [ -z "$BRIDGE" ]; then
+if [ -z "$VM_NET_OPT_BRIDGE" ]; then
 	echo "{INFO} virsh net-update ..."
 	virsh net-update $VM_NETWORK_NAME delete ip-dhcp-host "<host ip='"$VM_IP"' />" --live --config
 	virsh net-update $VM_NETWORK_NAME add ip-dhcp-host "<host mac='"$VM_MAC"' name='"$VM_NAME"' ip='"$VM_IP"' />" --live --config
@@ -214,17 +214,17 @@ chcon -t svirt_tmp_t $TMPDIR
 
 # Execute virt-install command with the parameters given
 echo "{INFO} virt-install ..."
-virt-install --connect=qemu:///system --hvm \
-		--clock offset=utc \
-		--accelerate --name "$VM_NAME" \
-		--ram=${VM_RAM:-2048} --vcpu=${VM_CPUS:-2} --cpu host,-invtsc \
-		--disk path=$WIN_ISO,device=cdrom \
-		--vnc --os-variant ${VM_OS_VARIANT} \
-		--serial file,path=$SERIAL_PATH --serial pty \
-		--disk path=$VM_IMAGE,bus=ide,size=$VM_DISKSIZE,format=qcow2,cache=none \
-		--disk path=$ANSF_MEDIA_PATH,device=$ANSF_MEDIA_TYPE \
-		$VM_NETWORK \
-		|| { echo error $? from virt-install ; exit 1 ; }
+virt-install --connect=qemu:///system --hvm --clock offset=utc \
+	--accelerate --cpu host,-invtsc \
+	--name "$VM_NAME" --ram=${VM_RAM:-2048} --vcpu=${VM_CPUS:-2} \
+	--os-variant ${VM_OS_VARIANT} \
+	--disk path=$WIN_ISO,device=cdrom \
+	--disk path=$ANSF_MEDIA_PATH,device=$ANSF_MEDIA_TYPE \
+	--disk path=$VM_IMAGE,bus=ide,size=$VM_DISKSIZE,format=qcow2,cache=none \
+	--serial file,path=$SERIAL_PATH --serial pty \
+	$VM_NET_OPT \
+	--noautoconsole \
+	--vnc --vnclisten 0.0.0.0 --vncport 7788 || { echo error $? from virt-install ; exit 1 ; }
 
 # To check whether the installation is done
 echo "{INFO} waiting install done ..."
@@ -237,7 +237,7 @@ while ((t-- > 0)) ; do
 	sleep 1m
 done
 [[ $success != yes ]] && {
-	echo "Install timeout($VM_TIMEOUT)"
+	echo "{WARN} Install timeout($VM_TIMEOUT)"
 }
 
 # =======================================================================
