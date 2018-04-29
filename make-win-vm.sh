@@ -38,6 +38,7 @@ Usage: $PEOG [OPTION]...
 		#Specify the answerfiles media type loaded to KVM.
   -b, --bridge  #Use traditional bridge interface br0. Not recommended.
   --timeout     #Set waiting timeout for installation.
+  --vncport <>  #Set vncport
 EOF
 }
 
@@ -57,6 +58,7 @@ ARGS=$(getopt -o hu:p:t:b \
 	--long ans-file-media-type: \
 	--long bridge \
 	--long timeout: \
+	--long vncport: \
 	-n "$PROG" -- "$@")
 eval set -- "$ARGS"
 while true; do
@@ -77,7 +79,8 @@ while true; do
 	--os-variant) VM_OS_VARIANT="$2"; shift 2;;
 	-t|--ans-file-media-type) ANSF_MEDIA_TYPE="$2"; shift 2;;
 	-b|--bridge) brgmode=yes; shift 1;; 
-	--timeout) VM_TIMEOUT="$2";shift 2;;
+	--timeout) VM_TIMEOUT="$2"; shift 2;;
+	--vncport) VNC_PORT="$2"; shift 2;;
 	--) shift; break;;
 	*) Usage; exit 1;; 
 	esac
@@ -225,7 +228,7 @@ virt-install --connect=qemu:///system --hvm --clock offset=utc \
 	--disk path=$ANSF_MEDIA_PATH,device=$ANSF_MEDIA_TYPE \
 	--serial file,path=$SERIAL_PATH --serial pty \
 	$VM_NET_OPT \
-	--vnc --vnclisten 0.0.0.0 --vncport 7788 || { echo error $? from virt-install ; exit 1 ; }
+	--vnc --vnclisten 0.0.0.0 --vncport ${VNC_PORT:-7788} || { echo error $? from virt-install ; exit 1 ; }
 
 # To check whether the installation is done
 echo -e "\n{INFO} waiting install done ..."
