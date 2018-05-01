@@ -1,6 +1,0 @@
-echo do this just after AD has been set up
-$env:Path = $env:Path + ';C:\windows\sysnative'
-powershell -NoProfile -ExecutionPolicy Bypass -Command  "$DNS_IPS=(Get-WmiObject \"Win32_NetworkAdapterConfiguration where MACAddress='@DNS_IF_MAC@'\").IPaddress; dnscmd . /ResetListenAddresses $DNS_IPS"
-echo Install Standalone Root CA
-powershell -executionpolicy bypass -file @ANSF_DRIVE_LETTER@\setupca.ps1
-@ANSF_DRIVE_LETTER@\nextscript.cmd 4 "Reboot to complete Cert Services setup"

@@ -1,9 +1,0 @@
-echo hello from SetupComplete.cmd
-rem echo Disable LUA
-rem reg add HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System /v EnableLUA /t REG_DWORD /d 0 /f
-rem echo Setup AD as Domain Controller
-rem dcpromo.exe /unattend:@ANSF_DRIVE_LETTER@\dcinstall.ini > c:\dcinstall.log 2>&1
-rem echo Install Enterprise Root CA
-rem cscript @ANSF_DRIVE_LETTER@\Setupca.vbs /IE
-rem echo Enable LUA
-rem reg add HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System /v EnableLUA /t REG_DWORD /d 1 /f

@@ -1,0 +1,119 @@
+
+echo "==> Start postinstall ..."
+
+$postprog = "@ANSF_DRIVE_LETTER@\postinstall.ps1"
+$RunOnceKey = "HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce"
+
+$stage = $args[0]
+if (!$stage) { $stage = "base" }
+
+echo "==> Start postinstall $stage ..."
+
+switch($stage) {
+	"base" {
+		# echo activate windows with the product key
+		# no need to activate: ??? 
+
+		# turning off firewall
+		echo "`n==> turning off firewall"
+		Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+
+		# enabling remote desktop
+		echo "`n==> enabling remote desktop"
+		Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+		#Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+		#Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 0
+
+		# saving network connection details
+		echo "`n==> save ipconfig info"
+		ipconfig | out-file -encoding utf8 C:\@IPCONFIG_LOG@
+		ipconfig | out-file -encoding utf8 A:\@IPCONFIG_LOG@
+
+		# disabling IE ESC (Internet Explorer Enhanced Security Configuration)
+		echo "`n==> disabling IE ESC (Internet Explorer Enhanced Security Configuration)"
+		$AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
+		$UserKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"
+		Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0
+		Set-ItemProperty -Path $UserKey -Name "IsInstalled" -Value 0
+		Stop-Process -Name Explorer
+		echo "`n==> IE Enhanced Security Configuration (ESC) has been disabled."
+
+		# disabling shutdown event tracker/shutdown dialog
+		echo "`n==> disabling shutdown event tracker/dialog"
+		reg add "HKLM\SOFTWARE\Policies\Control\Microsoft\Windows NT\Reliability" /v ShutDownReasonOn /t REG_DWORD /d 0 /f
+		reg add "HKLM\SOFTWARE\Policies\Control\Microsoft\Windows NT\Reliability" /v ShutDownReasonUI /t REG_DWORD /d 0 /f
+
+		# adding hostname for the virtual host
+		echo "`n==> add host's hostname to $Env:WinDir\system32\drivers\etc\hosts"
+		echo "" >> $Env:WinDir\system32\drivers\etc\hosts
+		echo "192.168.122.1 @VIRTHOST@" >> $Env:WinDir\system32\drivers\etc\hosts
+
+		# disabling DNS registration on the network interface 
+		echo "`n==> disabling DNS registration on the network interface"
+		$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@MAC_DISABLE@'")
+		$Nic.SetDynamicDNSRegistration($false,$false)
+
+		# installing chocolatey package manager
+		echo "`n==> installing chocolatey package manager"
+		iex ((new-object net.webclient).DownloadString('https://chocolatey.org/install.ps1'))
+		if ($?) {
+			$env:Path+=";%ALLUSERSPROFILE%\chocolatey\bin"
+		}
+		# installing openssh
+		choco install openssh -params '"/SSHServerFeature"' -y
+
+		# Setup AD as Domain Controller
+		echo "`n==> Setup AD as Domain Controller"
+		Install-windowsfeature -name AD-Domain-Services -IncludeManagementTools
+		$SafePasswd=(convertto-securestring "@ADMINPASSWORD@" -asplaintext -force)
+		Install-ADDSForest -DomainName @AD_DOMAIN@ -SafeModeAdministratorPassword $SafePasswd -CreateDNSDelegation:$false -NoDNSOnNetwork:$true -DomainMode @AD_DOMAIN_LEVEL@ -DomainNetBIOSName @NETBIOS_NAME@ -ForestMode @AD_FOREST_LEVEL@ -InstallDNS:$true -NoRebootOnCompletion:$true -Force
+
+		# Reboot to complete Active Directory setup
+		echo "`n==> Reboot to complete Active Directory setup"
+		Set-ItemProperty $RunOnceKey "NextRun" "powershell $postprog afterADSetup >> c:\postinstall.log 2>&1"
+		shutdown -r -f -t 10 -c "Shutting down in 1 minute: Reboot to complete Active Directory setup"
+	}
+
+	"afterADSetup" {
+		# do this just after AD has been set up
+		echo "`n==> reset dns ip"
+		$DNS_IPS=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@DNS_IF_MAC@'").IPaddress
+		dnscmd . /ResetListenAddresses $DNS_IPS
+
+		# Install Standalone Root CA
+		echo "`n==> Install Standalone Root CA"
+		Import-Module ServerManager
+		Add-WindowsFeature Adcs-Cert-Authority -IncludeManagementTools
+		Install-AdcsCertificationAuthority -force -CAType EnterpriseRootCa
+
+		# Reboot to complete Cert Services setup
+		echo "`n==> Reboot to complete Cert Services setup"
+		Set-ItemProperty $RunOnceKey "NextRun" "powershell $postprog afterCertSetup >> c:\postinstall.log 2>&1"
+		shutdown -r -f -t 10 -c "Shutting down in 1 minute: Reboot to complete Cert Services setup"
+	}
+
+	"afterCertSetup" {
+		# cho create cert request for AD, sign it, and install it
+		echo "`n==> cho create cert request for AD, sign it, and install it"
+		certreq -v -q -new @ANSF_DRIVE_LETTER@\adcertreq.inf c:\adcertreq.req
+		certreq -v -q -submit -attrib "CertificateTemplate:DomainController" c:\adcertreq.req
+
+		# this assumes the request ID is 2 -  request 1 was the creation of the CA cert itself
+		# not sure how it is possible to capture the request ID from the certreq -submit output
+		$requestid = 2
+		certutil -resubmit $requestid
+		certreq -v -q -retrieve $requestid c:\ad.cer c:\ad.p7b
+		certreq -v -q -accept c:\ad.p7b
+		certutil -store my
+		# you should now be able to access AD via TLS/SSL
+
+		# Add KDC
+		echo "`n==> Add KDC"
+		ksetup.exe /AddKDC @NETBIOS_NAME@ @FQDN@
+
+		# complete
+		echo "`n==> install complete!!!"
+		echo "install complete" | out-file -encoding utf8 C:\@INSTALL_COMPLETE@
+		echo "install complete" | out-file -encoding utf8 A:\@INSTALL_COMPLETE@
+	}
+}

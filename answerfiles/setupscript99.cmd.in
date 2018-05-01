@@ -1,3 +1,0 @@
-copy @ANSF_DRIVE_LETTER@\nextscript.cmd C:\@INSTALL_COMPLETE@
-copy @ANSF_DRIVE_LETTER@\nextscript.cmd A:\@INSTALL_COMPLETE@
-echo setup is complete
