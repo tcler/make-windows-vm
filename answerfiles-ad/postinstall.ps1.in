@@ -54,10 +54,13 @@ switch($stage) {
 		echo "" >> $Env:WinDir\system32\drivers\etc\hosts
 		echo "192.168.122.1 @VIRTHOST@" >> $Env:WinDir\system32\drivers\etc\hosts
 
-		# disabling DNS registration on the network interface 
-		out-host "`n==> disabling DNS registration on the network interface"
-		$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@MAC_DISABLE@'")
-		$Nic.SetDynamicDNSRegistration($false,$false)
+		# disabling DNS registration on the network interface
+		$MacDisable = "@MAC_DISABLE@"
+		if ($MacDisable) {
+			out-host "`n==> disabling DNS registration on the network interface"
+			$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='$MacDisable'")
+			$Nic.SetDynamicDNSRegistration($false,$false)
+		}
 
 		# installing chocolatey package manager
 		out-host "`n==> installing chocolatey package manager"

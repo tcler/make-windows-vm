@@ -110,10 +110,6 @@ GUEST_HOSTNAME=${GUEST_HOSTNAME:-$VM_NAME}
 DOMAIN=${DOMAIN:-mytest.com}
 ADMINNAME=${ADMINNAME:-Administrator}
 ADMINPASSWORD=${ADMINPASSWORD:-password}
-VM_MAC=$(gen_virt_mac)
-VM_EXT_MAC=$(gen_virt_mac 01)
-DNS_IF_MAC=$VM_EXT_MAC
-MAC_DISABLE=$VM_MAC
 
 # Setup Active Directory
 FQDN=$GUEST_HOSTNAME.$DOMAIN
@@ -129,10 +125,12 @@ systemctl restart libvirtd.service
 systemctl restart virtlogd.service
 
 # ====================================================================
-# Setup_bridge
+# setup vm network
 # ====================================================================
+VM_EXT_MAC=$(gen_virt_mac 01)
+DNS_IF_MAC=$VM_EXT_MAC
 DEFAULT_IF=$(ip -4 route get 1 | head -n 1 | awk '{print $5}')
-[[ "$brgmode" = yes ]] && {
+if [[ "$brgmode" = yes ]]; then
 	echo -e "\n{INFO} bridge mode setup ..."
 	if [ $DEFAULT_IF != "br0" ]; then
 		network_path="/etc/sysconfig/network-scripts"
@@ -144,8 +142,21 @@ DEFAULT_IF=$(ip -4 route get 1 | head -n 1 | awk '{print $5}')
 		fi
 		systemctl restart network > /dev/null 2>&1
 	fi
-	VM_NET_OPT_BRIDGE="--network bridge=br0,model=rtl8139,mac=$VM_EXT_MAC"
-}
+	VM_NET_OPT="--network bridge=br0,model=rtl8139,mac=$VM_EXT_MAC"
+else
+	VM_NETWORK_NAME=default
+	VM_IP=$(gen_ip)
+	VM_MAC=$(gen_virt_mac)
+	MAC_DISABLE=$VM_MAC
+	VM_NET_OPT_INTERNAL="--network network=$VM_NETWORK_NAME,model=rtl8139,mac=$VM_MAC"
+	VM_NET_OPT_EXTRA="--network type=direct,source=$DEFAULT_IF,source_mode=vepa,mac=$VM_EXT_MAC"
+	VM_NET_OPT="$VM_NET_OPT_INTERNAL $VM_NET_OPT_EXTRA"
+
+	# Update KVM network configuration
+	echo -e "\n{INFO} virsh net-update ..."
+	virsh net-update $VM_NETWORK_NAME delete ip-dhcp-host "<host ip='"$VM_IP"' />" --live --config
+	virsh net-update $VM_NETWORK_NAME add ip-dhcp-host "<host mac='"$VM_MAC"' name='"$VM_NAME"' ip='"$VM_IP"' />" --live --config
+fi
 
 # Parameters
 ANSF_MEDIA_TYPE=${ANSF_MEDIA_TYPE:-floppy}
@@ -153,20 +164,8 @@ VM_IMG_DIR=/var/lib/libvirt/images
 ANSF_CDROM=${ANSF_CDROM:-$VM_IMG_DIR/$VM_NAME-ansf-cdrom.iso}
 ANSF_FLOPPY=${ANSF_FLOPPY:-$VM_IMG_DIR/$VM_NAME-ansf-floppy.vfd}
 VM_IMAGE=${VM_IMAGE:-$VM_IMG_DIR/$VM_NAME.qcow2}
-VM_NETWORK_NAME=default
-VM_IP=$(gen_ip)
-VM_NET_OPT_INTERNAL="--network network=$VM_NETWORK_NAME,model=rtl8139,mac=$VM_MAC"
-VM_NET_OPT_EXTRA="--network type=direct,source=$DEFAULT_IF,source_mode=vepa,mac=$VM_EXT_MAC"
-VM_NET_OPT=${VM_NET_OPT_BRIDGE:-"$VM_NET_OPT_INTERNAL $VM_NET_OPT_EXTRA"}
 SERIAL_PATH=/tmp/serial-$(date +%Y%m%d%H%M%S).$$
 VIRTHOST=$(hostname -f)
-
-# Update KVM network configuration
-if [ -z "$VM_NET_OPT_BRIDGE" ]; then
-	echo -e "\n{INFO} virsh net-update ..."
-	virsh net-update $VM_NETWORK_NAME delete ip-dhcp-host "<host ip='"$VM_IP"' />" --live --config
-	virsh net-update $VM_NETWORK_NAME add ip-dhcp-host "<host mac='"$VM_MAC"' name='"$VM_NAME"' ip='"$VM_IP"' />" --live --config
-fi
 
 # ====================================================================
 # Generate cdrom/floppy of answerfiles
@@ -265,7 +264,7 @@ eject_cds $VM_NAME  $WIN_ISO $ANSF_MEDIA_PATH
 # When installation is done, test AD connection and get AD CA cert
 echo -e "\n{INFO} get cert test ..."
 ldapurl=ldap://${VM_EXT_IP}
-[[ -z "$VM_NET_OPT_BRIDGE" ]] && ldapurl=ldap://${VM_IP}
+[[ "$brgmode" != yes ]] && ldapurl=ldap://${VM_IP}
 echo -e "\n{INFO} get_cert $VM_NAME $FQDN $DOMAIN $ADMINNAME:$ADMINPASSWORD $ldapurl"
 get_cert $VM_NAME $FQDN $DOMAIN $ADMINNAME:$ADMINPASSWORD $ldapurl
 
