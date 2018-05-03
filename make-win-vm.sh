@@ -90,11 +90,15 @@ done
 	AD_FOREST_LEVEL=${AD_FOREST_LEVEL:-Win2012R2}
 AD_DOMAIN_LEVEL=${AD_DOMAIN_LEVEL:-$AD_FOREST_LEVEL}
 
-[[ -z "$WIN_ISO" || -z "$PRODUCT_KEY" || -z "$ADMINPASSWORD" ||
+[[ -z "$WIN_ISO" || -z "$ADMINPASSWORD" ||
    -z "$VM_NAME" || -z "$VM_OS_VARIANT" ||
    -z "$AD_FOREST_LEVEL" || -z "$AD_DOMAIN_LEVEL" ]] && {
 	Usage
 	exit 1
+}
+[[ -z "$PRODUCT_KEY" ]] && {
+	echo -e "[WARN] *** There is no Product Key specified, We assume that you are using evaluation version."
+	echo -e "[WARN] *** Otherwise please use the '--product-key <key>' to ensure successful installation."
 }
 
 # =======================================================================
