@@ -32,7 +32,8 @@ sudo yum install libvirt libvirt-client virt-install virt-viewer qemu-kvm \
 ```
  
 ## steps:
- - Download a windows ISO file
+ - Download a windows ISO(If you have not bought a license, you can try evaluate versions)
+   - https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server
  - Define global file name to share info between Host and Win Guest
    - install log file
    - complete file
