@@ -154,7 +154,9 @@ else
 
 	# Update KVM network configuration
 	echo -e "\n{INFO} virsh net-update ..."
-	virsh net-update $VM_NETWORK_NAME delete ip-dhcp-host "<host ip='"$VM_IP"' />" --live --config
+	if virsh net-dumpxml $VM_NETWORK_NAME | grep -q $VM_IP; then
+		virsh net-update $VM_NETWORK_NAME delete ip-dhcp-host "<host ip='"$VM_IP"' />" --live --config
+	fi
 	virsh net-update $VM_NETWORK_NAME add ip-dhcp-host "<host mac='"$VM_MAC"' name='"$VM_NAME"' ip='"$VM_IP"' />" --live --config
 fi
 
