@@ -23,17 +23,37 @@ Usage: $PEOG [OPTION]...
   -u <user>     #Specify user for install and config, default: Administrator
   -p <password> #*Specify user's password for windows.
 
-  --ad-forest-level
+  --ad-forest-level <Default|Win2008|Win2008R2|Win2012|Win2012R2|WinThreshold>
 		#Specify active directory forest level.
-  --ad-domain-level
+		  Windows Server 2003: 2 or Win2003
+		  Windows Server 2008: 3 or Win2008
+		  Windows Server 2008 R2: 4 or Win2008R2
+		  Windows Server 2012: 5 or Win2012
+		  Windows Server 2012 R2: 6 or Win2012R2
+		  Windows Server 2016: 7 or WinThreshold
+		#The default forest functional level in Windows Server is typically the same -
+		#as the version you are running. However, the default forest functional level -
+		#in Windows Server 2008 R2 when you create a new forest is Windows Server 2003 or 2.
+		#see: https://docs.microsoft.com/en-us/powershell/module/addsdeployment/install-addsforest?view=win10-ps
+  --ad-domain-level <Default|Win2008|Win2008R2|Win2012|Win2012R2|WinThreshold>
 		#Specify active directory domain level.
+		  Windows Server 2003: 2 or Win2003
+		  Windows Server 2008: 3 or Win2008
+		  Windows Server 2008 R2: 4 or Win2008R2
+		  Windows Server 2012: 5 or Win2012
+		  Windows Server 2012 R2: 6 or Win2012R2
+		  Windows Server 2016: 7 or WinThreshold
+		#The domain functional level cannot be lower than the forest functional level,
+		#but it can be higher. The default is automatically computed and set.
+		#see: https://docs.microsoft.com/en-us/powershell/module/addsdeployment/install-addsforest?view=win10-ps
 
   --vm-name <VM_NAME>
 		#*Specify the vm guest's name.
   --ram         #VM's ram size
   --cpus        #Numbers of cpu cores for VM.
   --disk-size   #VM disk size, in .qcow2 format.
-  --os-variant  #*Specify os variant in for VM.
+  --os-variant  <win2k12|win2k12r2|win2k16|win10|win7|...>
+                #*Use the command "osinfo-query os" to get the list of the accepted OS variants
   -t --ans-file-media-type <cdrom|floppy>
 		#Specify the answerfiles media type loaded to KVM.
   -b, --bridge  #Use traditional bridge interface br0. Not recommended.
@@ -86,13 +106,11 @@ while true; do
 	esac
 done
 
-[[ "$VM_OS_VARIANT" = win2k12r2 ]] &&
-	AD_FOREST_LEVEL=${AD_FOREST_LEVEL:-Win2012R2}
+AD_FOREST_LEVEL=${AD_FOREST_LEVEL:-Default}
 AD_DOMAIN_LEVEL=${AD_DOMAIN_LEVEL:-$AD_FOREST_LEVEL}
 
 [[ -z "$WIN_ISO" || -z "$ADMINPASSWORD" ||
-   -z "$VM_NAME" || -z "$VM_OS_VARIANT" ||
-   -z "$AD_FOREST_LEVEL" || -z "$AD_DOMAIN_LEVEL" ]] && {
+   -z "$VM_NAME" || -z "$VM_OS_VARIANT" ]] && {
 	Usage
 	exit 1
 }
