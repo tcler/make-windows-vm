@@ -33,7 +33,9 @@ switch($stage) {
 		# saving network connection details
 		out-host "`n==> save ipconfig info"
 		ipconfig | out-file -encoding utf8 C:\@IPCONFIG_LOG@
-		ipconfig | out-file -encoding utf8 A:\@IPCONFIG_LOG@
+		if (Test-Path -Path A:) {
+			ipconfig | out-file -encoding utf8 A:\@IPCONFIG_LOG@
+		}
 
 		# disabling IE ESC (Internet Explorer Enhanced Security Configuration)
 		out-host "`n==> disabling IE ESC (Internet Explorer Enhanced Security Configuration)"
@@ -123,6 +125,8 @@ switch($stage) {
 		# complete
 		out-host "`n==> install complete!!!"
 		echo "install complete" | out-file -encoding utf8 C:\@INSTALL_COMPLETE@
-		echo "install complete" | out-file -encoding utf8 A:\@INSTALL_COMPLETE@
+		if (Test-Path -Path A:) {
+			echo "install complete" | out-file -encoding utf8 A:\@INSTALL_COMPLETE@
+		}
 	}
 }
