@@ -215,6 +215,8 @@ process_ansf() {
 		-e "s/@IPCONFIG_LOG@/$IPCONFIG_LOG/g" \
 		$destdir/*
 	unix2dos $destdir/* >/dev/null
+	[[ -z "$PRODUCT_KEY" ]] &&
+		sed -i '/<ProductKey>/ { :loop /<\/ProductKey>/! {N; b loop}; s;<ProductKey>.*</ProductKey>;; }' $destdir/*.xml
 }
 
 echo -e "\n{INFO} make answer file media ..."
