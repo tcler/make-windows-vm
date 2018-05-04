@@ -66,7 +66,7 @@ while true; do
 	-h|--help) Usage; exit 1;; 
 	--image) WIN_ISO="$2"; shift 2;;
 	--product-key) PRODUCT_KEY="$2"; shift 2;;
-	--hostname) PRODUCT_KEY="$2"; shift 2;;
+	--hostname) GUEST_HOSTNAME="$2"; shift 2;;
 	--domain) DOMAIN="$2"; shift 2;;
 	-u) ADMINNAME="$2"; shift 2;;
 	-p) ADMINPASSWORD="$2"; shift 2;;
