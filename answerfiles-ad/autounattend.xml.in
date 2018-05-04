@@ -90,12 +90,12 @@ Sample answer file for headless deployment
                     <WillShowUI>Never</WillShowUI>
                     <InstallFrom>
                         <MetaData wcm:action="add">
-                            <Key>/IMAGE/NAME</Key>
-                            <Value>Windows Server 2012 R2 SERVERDATACENTER</Value>
 <!--
-                            <Key>/IMAGE/INDEX</Key>
-                            <Value>1</Value>
+                            <Key>/IMAGE/NAME</Key>
+                            <Value>@WIM_IMAGE_NAME@</Value>
 -->
+                            <Key>/IMAGE/INDEX</Key>
+                            <Value>4</Value>
                         </MetaData>
                     </InstallFrom>
                 </OSImage>
