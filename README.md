@@ -98,10 +98,13 @@ PS C:\> Get-WindowsImage -ImagePath "c:\imagestore\install.wim" -Name Ultimate
 PS C:\> Get-WindowsImage -ImagePath "c:\imagestore\install.vhd"
 
 # from linux
-# install winlib (https://wimlib.net/)
+# # install winlib (https://wimlib.net/)
+# sudo yum install libxml2-devel fuse-devel
+# git clone git://wimlib.net/wimlib && cd wimlib && ./confiure && make && sudo make install
 # sudo mount /var/ftp/pub/windows-images/9600.*.ISO  /mnt/images
-# wiminfo /mnt/images/sources/install.wim
-# wiminfo /mnt/images/sources/install.wim 1
+
+# wiminfo /mnt/images/sources/install.wim    # get all images info
+# wiminfo /mnt/images/sources/install.wim 1  # get info of Image with Index=1
 Information for Image 1
 -----------------------
 Index:                  1
@@ -132,6 +135,8 @@ Service Pack Build:     17031
 Service Pack Level:     0
 Flags:                  ServerStandardEvalCore
 WIMBoot compatible:     no
+
+## get info of Image with Name="Windows Server 2012 R2 SERVERSTANDARD"
 # wiminfo /mnt/images/sources/install.wim "Windows Server 2012 R2 SERVERSTANDARD"
 Information for Image 2
 -----------------------
