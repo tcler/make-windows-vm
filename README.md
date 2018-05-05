@@ -40,7 +40,6 @@ sudo yum install libvirt libvirt-client virt-install virt-viewer qemu-kvm \
  - Define global file name to share info between Host and Win Guest
    - install log file
    - complete file
-   - windows env
  - Prepare answer file autounattend.xml and the data/parameters needed during install
    - win product key
    - win username & passwd
@@ -54,6 +53,12 @@ sudo yum install libvirt libvirt-client virt-install virt-viewer qemu-kvm \
    - cert
      - ?
      - ?
+   - NFS
+     - export path
+     - export options
+   - CIFS
+     - export path
+     - export options
  - Prepare vm parameters
    - vm instance name
    - vm cpu vcpu
@@ -63,7 +68,8 @@ sudo yum install libvirt libvirt-client virt-install virt-viewer qemu-kvm \
 
 
 
-## [0] about libguestfs ntfs and libguestfs-winsupport
+## Tips
+### [0] about libguestfs ntfs and libguestfs-winsupport
 ```
 # ref: http://libguestfs.org/guestfs-faq.1.html
 Cannot open Windows guests which use NTFS.
@@ -82,4 +88,79 @@ In RHEL 7.2 we were able to add libguestfs-winsupport to the base RHEL distribut
 This is not a supported configuration, and it will not be made to work in RHEL. Don't bother to open a bug about it, as it will be immediately CLOSED -> WONTFIX.
 
 You may compile your own libguestfs removing this restriction, but that won't be endorsed or supported by Red Hat. 
+```
+
+### [1] get wim images info
+```
+# from windows
+CMD C:\> dism /Get-WimInfo /WimFile:F:\sources\install.wim
+PS C:\> Get-WindowsImage -ImagePath "c:\imagestore\install.wim" -Name Ultimate
+PS C:\> Get-WindowsImage -ImagePath "c:\imagestore\install.vhd"
+
+# from linux
+# install winlib (https://wimlib.net/)
+# sudo mount /var/ftp/pub/windows-images/9600.*.ISO  /mnt/images
+# wiminfo /mnt/images/sources/install.wim
+# wiminfo /mnt/images/sources/install.wim 1
+Information for Image 1
+-----------------------
+Index:                  1
+Name:                   Windows Server 2012 R2 SERVERSTANDARDCORE
+Description:            Windows Server 2012 R2 SERVERSTANDARDCORE
+Display Name:           Windows Server 2012 R2 Standard Evaluation (Server Core Installation)
+Display Description:    This option (recommended) reduces management and servicing by installing only what is needed to run most server roles and applications. It does not include a GUI, but you can fully manage the server locally or remotely with Windows PowerShell or other tools. You can switch to a different installation option later. See "Windows Server Installation Options."
+Directory Count:        13547
+File Count:             70219
+Total Bytes:            6898373863
+Hard Link Bytes:        2237344885
+Creation Time:          Fri Mar 21 20:31:02 2014 UTC
+Last Modification Time: Fri Mar 21 20:31:24 2014 UTC
+Architecture:           x86_64
+Product Name:           Microsoft® Windows® Operating System
+Edition ID:             ServerStandardEval
+Installation Type:      Server Core
+HAL:                    acpiapic
+Product Type:           ServerNT
+Product Suite:          Terminal Server
+Languages:              en-US
+Default Language:       en-US
+System Root:            WINDOWS
+Major Version:          6
+Minor Version:          3
+Build:                  9600
+Service Pack Build:     17031
+Service Pack Level:     0
+Flags:                  ServerStandardEvalCore
+WIMBoot compatible:     no
+# wiminfo /mnt/images/sources/install.wim "Windows Server 2012 R2 SERVERSTANDARD"
+Information for Image 2
+-----------------------
+Index:                  2
+Name:                   Windows Server 2012 R2 SERVERSTANDARD
+Description:            Windows Server 2012 R2 SERVERSTANDARD
+Display Name:           Windows Server 2012 R2 Standard Evaluation (Server with a GUI)
+Display Description:    This option is useful when a GUI is required—for example, to provide backward compatibility for an application that cannot be run on a Server Core installation. All server roles and features are supported. You can switch to a different installation option later. See "Windows Server Installation Options."
+Directory Count:        19342
+File Count:             89400
+Total Bytes:            12051460352
+Hard Link Bytes:        4403205238
+Creation Time:          Fri Mar 21 20:40:33 2014 UTC
+Last Modification Time: Fri Mar 21 20:41:07 2014 UTC
+Architecture:           x86_64
+Product Name:           Microsoft® Windows® Operating System
+Edition ID:             ServerStandardEval
+Installation Type:      Server
+HAL:                    acpiapic
+Product Type:           ServerNT
+Product Suite:          Terminal Server
+Languages:              en-US
+Default Language:       en-US
+System Root:            WINDOWS
+Major Version:          6
+Minor Version:          3
+Build:                  9600
+Service Pack Build:     17031
+Service Pack Level:     0
+Flags:                  ServerStandardEval
+WIMBoot compatible:     no
 ```
