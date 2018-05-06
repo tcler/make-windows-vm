@@ -154,6 +154,7 @@ VM_EXT_MAC=$(gen_virt_mac 01)
 DNS_IF_MAC=$VM_EXT_MAC
 DEFAULT_IF=$(ip -4 route get 1 | head -n 1 | awk '{print $5}')
 if [[ "$MacvTap" = vepa ]]; then
+	echo -e "\n{INFO} MacvTap:vepa mode setup ..."
 	VM_NET_OPT_EXTRA="--network type=direct,source=$DEFAULT_IF,source_mode=vepa,mac=$VM_EXT_MAC"
 
 	VM_NET_NAME=default
@@ -167,11 +168,11 @@ if [[ "$MacvTap" = vepa ]]; then
 	# Update KVM network configuration
 	echo -e "\n{INFO} virsh net-update ..."
 	if virsh net-dumpxml $VM_NET_NAME | grep -q $VM_INT_IP; then
-		virsh net-update $VM_NET_NAME delete ip-dhcp-host "<host ip='"$VM_INT_IP"' />" --live --config
+		virsh net-update $VM_NET_NAME delete ip-dhcp-host "<host ip='$VM_INT_IP' />" --live --config
 	fi
-	virsh net-update $VM_NET_NAME add ip-dhcp-host "<host mac='"$VM_INT_MAC"' name='"$VM_NAME"' ip='"$VM_INT_IP"' />" --live --config
+	virsh net-update $VM_NET_NAME add ip-dhcp-host "<host mac='$VM_INT_MAC' name='$VM_NAME' ip='$VM_INT_IP' />" --live --config
 else
-	echo -e "\n{INFO} bridge mode setup ..."
+	echo -e "\n{INFO} MacvTap:bridge mode setup ..."
 	if [ $DEFAULT_IF != "br0" ]; then
 		network_path="/etc/sysconfig/network-scripts"
 		echo -e "TYPE=Bridge\nBOOTPROTO=dhcp\nDEVICE=br0\nONBOOT=yes" \
