@@ -174,14 +174,8 @@ if [[ "$MacvTap" = vepa ]]; then
 else
 	echo -e "\n{INFO} MacvTap:bridge mode setup ..."
 	if [ $DEFAULT_IF != "br0" ]; then
-		network_path="/etc/sysconfig/network-scripts"
-		echo -e "TYPE=Bridge\nBOOTPROTO=dhcp\nDEVICE=br0\nONBOOT=yes" \
-			> $network_path/ifcfg-br0
-		grep br0 $network_path/ifcfg-$DEFAULT_IF
-		if [ $? -ne 0 ]; then
-			echo "BRIDGE=br0" >> $network_path/ifcfg-$DEFAULT_IF
-		fi
-		systemctl restart network > /dev/null 2>&1
+		virsh iface-bridge $DEFAULT_IF br0
+		systemctl restart network >/dev/null
 	fi
 	VM_NET_OPT="--network bridge=br0,model=rtl8139,mac=$VM_EXT_MAC"
 fi
