@@ -98,7 +98,7 @@ while true; do
 	--disk-size) VM_DISKSIZE="$2"; shift 2;;
 	--os-variant) VM_OS_VARIANT="$2"; shift 2;;
 	-t|--ans-file-media-type) ANSF_MEDIA_TYPE="$2"; shift 2;;
-	-b|--bridge) brgmode=yes; shift 1;; 
+	-b|--bridge) MacvTap=bridge; shift 1;; 
 	--timeout) VM_TIMEOUT="$2"; shift 2;;
 	--vncport) VNC_PORT="$2"; shift 2;;
 	--) shift; break;;
@@ -149,10 +149,28 @@ systemctl restart virtlogd.service
 # ====================================================================
 # setup vm network
 # ====================================================================
+MacvTap=${MacvTap:-vepa}
 VM_EXT_MAC=$(gen_virt_mac 01)
 DNS_IF_MAC=$VM_EXT_MAC
 DEFAULT_IF=$(ip -4 route get 1 | head -n 1 | awk '{print $5}')
-if [[ "$brgmode" = yes ]]; then
+if [[ "$MacvTap" = vepa ]]; then
+	VM_NET_OPT_EXTRA="--network type=direct,source=$DEFAULT_IF,source_mode=vepa,mac=$VM_EXT_MAC"
+
+	VM_NET_NAME=default
+	VM_INT_IP=$(gen_ip)
+	VM_INT_MAC=$(gen_virt_mac)
+	MAC_DISABLE=$VM_INT_MAC
+	VM_NET_OPT_INTERNAL="--network network=$VM_NET_NAME,model=rtl8139,mac=$VM_INT_MAC"
+
+	VM_NET_OPT="$VM_NET_OPT_INTERNAL $VM_NET_OPT_EXTRA"
+
+	# Update KVM network configuration
+	echo -e "\n{INFO} virsh net-update ..."
+	if virsh net-dumpxml $VM_NET_NAME | grep -q $VM_INT_IP; then
+		virsh net-update $VM_NET_NAME delete ip-dhcp-host "<host ip='"$VM_INT_IP"' />" --live --config
+	fi
+	virsh net-update $VM_NET_NAME add ip-dhcp-host "<host mac='"$VM_INT_MAC"' name='"$VM_NAME"' ip='"$VM_INT_IP"' />" --live --config
+else
 	echo -e "\n{INFO} bridge mode setup ..."
 	if [ $DEFAULT_IF != "br0" ]; then
 		network_path="/etc/sysconfig/network-scripts"
@@ -165,21 +183,6 @@ if [[ "$brgmode" = yes ]]; then
 		systemctl restart network > /dev/null 2>&1
 	fi
 	VM_NET_OPT="--network bridge=br0,model=rtl8139,mac=$VM_EXT_MAC"
-else
-	VM_NETWORK_NAME=default
-	VM_IP=$(gen_ip)
-	VM_MAC=$(gen_virt_mac)
-	MAC_DISABLE=$VM_MAC
-	VM_NET_OPT_INTERNAL="--network network=$VM_NETWORK_NAME,model=rtl8139,mac=$VM_MAC"
-	VM_NET_OPT_EXTRA="--network type=direct,source=$DEFAULT_IF,source_mode=vepa,mac=$VM_EXT_MAC"
-	VM_NET_OPT="$VM_NET_OPT_INTERNAL $VM_NET_OPT_EXTRA"
-
-	# Update KVM network configuration
-	echo -e "\n{INFO} virsh net-update ..."
-	if virsh net-dumpxml $VM_NETWORK_NAME | grep -q $VM_IP; then
-		virsh net-update $VM_NETWORK_NAME delete ip-dhcp-host "<host ip='"$VM_IP"' />" --live --config
-	fi
-	virsh net-update $VM_NETWORK_NAME add ip-dhcp-host "<host mac='"$VM_MAC"' name='"$VM_NAME"' ip='"$VM_IP"' />" --live --config
 fi
 
 # Parameters
@@ -290,7 +293,7 @@ eject_cds $VM_NAME  $WIN_ISO $ANSF_MEDIA_PATH
 # When installation is done, test AD connection and get AD CA cert
 echo -e "\n{INFO} get cert test ..."
 ldapurl=ldap://${VM_EXT_IP}
-[[ "$brgmode" != yes ]] && ldapurl=ldap://${VM_IP}
+[[ "$MacvTap" = vepa ]] && ldapurl=ldap://${VM_INT_IP}
 echo -e "\n{INFO} get_cert $VM_NAME $FQDN $DOMAIN $ADMINNAME:$ADMINPASSWORD $ldapurl"
 get_cert $VM_NAME $FQDN $DOMAIN $ADMINNAME:$ADMINPASSWORD $ldapurl
 
@@ -300,7 +303,7 @@ echo -e "\n{INFO} show guest info:"
 VM_INFO_FILE=/tmp/$VM_NAME.info
 cat <<-EOF | tee $VM_INFO_FILE
 	VM_NAME=$VM_NAME
-	VM_IP=$VM_IP
+	VM_INT_IP=$VM_INT_IP
 	VM_EXT_IP=$VM_EXT_IP
 	ADMINNAME=$ADMINNAME
 	ADMINPASSWORD=$ADMINPASSWORD
