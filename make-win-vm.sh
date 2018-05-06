@@ -157,20 +157,19 @@ if [[ "$MacvTap" = vepa ]]; then
 	echo -e "\n{INFO} MacvTap:vepa mode setup ..."
 	VM_NET_OPT_EXTRA="--network type=direct,source=$DEFAULT_IF,source_mode=vepa,mac=$VM_EXT_MAC"
 
+	# fixme: why we need 2 interface when use vepa mode?
+	echo -e "\n{INFO} Internal nic setup ..."
 	VM_NET_NAME=default
 	VM_INT_IP=$(gen_ip)
 	VM_INT_MAC=$(gen_virt_mac)
 	MAC_DISABLE=$VM_INT_MAC
 	VM_NET_OPT_INTERNAL="--network network=$VM_NET_NAME,model=rtl8139,mac=$VM_INT_MAC"
-
-	VM_NET_OPT="$VM_NET_OPT_INTERNAL $VM_NET_OPT_EXTRA"
-
-	# Update KVM network configuration
-	echo -e "\n{INFO} virsh net-update ..."
 	if virsh net-dumpxml $VM_NET_NAME | grep -q $VM_INT_IP; then
 		virsh net-update $VM_NET_NAME delete ip-dhcp-host "<host ip='$VM_INT_IP' />" --live --config
 	fi
 	virsh net-update $VM_NET_NAME add ip-dhcp-host "<host mac='$VM_INT_MAC' name='$VM_NAME' ip='$VM_INT_IP' />" --live --config
+
+	VM_NET_OPT="$VM_NET_OPT_INTERNAL $VM_NET_OPT_EXTRA"
 else
 	echo -e "\n{INFO} MacvTap:bridge mode setup ..."
 	if [ $DEFAULT_IF != "br0" ]; then
@@ -273,10 +272,7 @@ done
 [[ $install_done != yes ]] && {
 	echo -e "\n{WARN} Install timeout($VM_TIMEOUT)"
 }
-
-VM_EXT_IP=$(virt-cat -d $VM_NAME -m $fsdev /$IPCONFIG_LOG |
-	grep IPv4.Address | grep -v 192.168.122 |
-	egrep -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
+virt-cat -d $VM_NAME -m $fsdev /$IPCONFIG_LOG >/tmp/$VM_NAME.ipconfig
 
 # Eject CDs
 echo -e "\n{INFO} eject media ..."
@@ -292,10 +288,11 @@ ldapurl=ldap://${VM_EXT_IP}
 echo -e "\n{INFO} get_cert $VM_NAME $FQDN $DOMAIN $ADMINNAME:$ADMINPASSWORD $ldapurl"
 get_cert $VM_NAME $FQDN $DOMAIN $ADMINNAME:$ADMINPASSWORD $ldapurl
 
-
 # Save relative variables info a log file
 echo -e "\n{INFO} show guest info:"
 VM_INFO_FILE=/tmp/$VM_NAME.info
+VM_EXT_IP=$(grep IPv4.Address /tmp/$VM_NAME.ipconfig |
+	grep -v 192.168.122 | egrep -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
 cat <<-EOF | tee $VM_INFO_FILE
 	VM_NAME=$VM_NAME
 	VM_INT_IP=$VM_INT_IP
@@ -305,4 +302,6 @@ cat <<-EOF | tee $VM_INFO_FILE
 	DOMAIN=$DOMAIN
 	FQDN=$FQDN
 	NETBIOS_NAME=$NETBIOS_NAME
+
 EOF
+cat /tmp/$VM_NAME.ipconfig
