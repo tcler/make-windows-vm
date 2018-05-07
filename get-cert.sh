@@ -1,28 +1,6 @@
 #!/bin/bash
 
-# ====================================================================
-# Generate a random mac address with 54:52:00: prefix
-# ====================================================================
-gen_virt_mac() {
-    echo 54:52:00:${1:-00}$(od -txC -An -N2 /dev/random | tr \  :)
-}
-
-# ====================================================================
-# Eject CDs
-# ====================================================================
-eject_cds() {
-	local vm_name=$1; shift
-	local media_list="$@"
-
-	for media in $media_list; do
-		vm_media=$(virsh domblklist "$vm_name" | awk -v media=$media '$2==media {print $1}')
-		virsh change-media "$vm_name" "$vm_media" --eject
-	done
-}
-
-# ====================================================================
-# When installation is done, test AD connection and get AD CA cert
-# ====================================================================
+# test AD connection and get AD CA cert
 get_cert() {
 	local vmname=$1
 	local fqdn=$2
@@ -61,4 +39,4 @@ get_cert() {
 	\cp -p $tmp_cacert $win_ca_cert_file
 	rm -f $tmp_cacert
 }
-
+get_cert "$@"

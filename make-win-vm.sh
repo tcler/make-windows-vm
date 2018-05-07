@@ -1,8 +1,22 @@
 #!/bin/bash
 
-# Include function
-. ./function
 PROG=${0##*/}
+
+# Generate a random mac address with 54:52:00: prefix
+gen_virt_mac() {
+    echo 54:52:00:${1:-00}$(od -txC -An -N2 /dev/random | tr \  :)
+}
+
+# Eject CDs
+eject_cds() {
+	local vm_name=$1; shift
+	local media_list="$@"
+
+	for media in $media_list; do
+		vm_media=$(virsh domblklist "$vm_name" | awk -v media=$media '$2==media {print $1}')
+		virsh change-media "$vm_name" "$vm_media" --eject
+	done
+}
 
 # ==============================================================================
 # Parameter Processing
@@ -273,18 +287,10 @@ eject_cds $VM_NAME  $WIN_ISO $ANSF_MEDIA_PATH
 # =======================================================================
 # Post Setup
 # =======================================================================
-# When installation is done, test AD connection and get AD CA cert
-echo -e "\n{INFO} get cert test ..."
+# Save relative variables into a log file
+echo -e "\n{INFO} show guest info:"
 VM_INT_IP=$(awk '/IPv4 Address/ {if ($NF ~ /^192/) print $NF}' $WIN_IPCONFIG_LOG)
 VM_EXT_IP=$(awk '/IPv4 Address/ {if ($NF !~ /^192/) print $NF}' $WIN_IPCONFIG_LOG)
-
-ldapurl=ldap://${VM_EXT_IP}
-[[ "$MacvTap" = vepa ]] && ldapurl=ldap://${VM_INT_IP}
-echo -e "\n{INFO} get_cert $VM_NAME $FQDN $DOMAIN $ADMINNAME:$ADMINPASSWORD $ldapurl"
-get_cert $VM_NAME $FQDN $DOMAIN $ADMINNAME:$ADMINPASSWORD $ldapurl
-
-# Save relative variables info a log file
-echo -e "\n{INFO} show guest info:"
 VM_INFO_FILE=/tmp/$VM_NAME.env
 cat <<-EOF | tee $VM_INFO_FILE
 	VM_NAME=$VM_NAME
@@ -295,6 +301,11 @@ cat <<-EOF | tee $VM_INFO_FILE
 	DOMAIN=$DOMAIN
 	FQDN=$FQDN
 	NETBIOS_NAME=$NETBIOS_NAME
-
 EOF
+echo
 cat $WIN_IPCONFIG_LOG
+
+# Test AD connection and get AD CA cert
+echo -e "\n{INFO} Please run follow command to test AD connection"
+ldapurl=ldap://${VM_INT_IP}
+echo "./get-cert.sh $VM_NAME $FQDN $DOMAIN $ADMINNAME:$ADMINPASSWORD $ldapurl"
