@@ -124,6 +124,8 @@ AD_DOMAIN_LEVEL=${AD_DOMAIN_LEVEL:-$AD_FOREST_LEVEL}
 # =======================================================================
 IPCONFIG_LOG=ipconfig.log
 INSTALL_COMPLETE=installcomplete
+VM_IMG_DIR=/var/lib/libvirt/images
+VM_TIMEOUT=${VM_TIMEOUT:-60}
 
 # =======================================================================
 # Windows Preparation
@@ -146,47 +148,32 @@ sed -i -e "/#listen_tls/s/^#//" /etc/libvirt/libvirtd.conf
 systemctl restart libvirtd.service
 systemctl restart virtlogd.service
 
-# ====================================================================
-# setup vm network
-# ====================================================================
+# VM network parameters
 MacvTap=${MacvTap:-vepa}
 VM_EXT_MAC=$(gen_virt_mac 01)
-DNS_IF_MAC=$VM_EXT_MAC
 DEFAULT_IF=$(ip -4 route get 1 | head -n 1 | awk '{print $5}')
+echo -e "\n{INFO} vm nic for reach outside network(mac: $VM_EXT_MAC) (MacvTap:$MacvTap) ..."
 if [[ "$MacvTap" = vepa ]]; then
-	echo -e "\n{INFO} MacvTap:vepa mode setup ..."
-	VM_NET_OPT_EXTRA="--network type=direct,source=$DEFAULT_IF,source_mode=vepa,mac=$VM_EXT_MAC"
-
-	# fixme: why we need 2 interface when use vepa mode?
-	echo -e "\n{INFO} Internal nic setup ..."
-	VM_NET_NAME=default
-	VM_INT_IP=$(gen_ip)
-	VM_INT_MAC=$(gen_virt_mac)
-	MAC_DISABLE=$VM_INT_MAC
-	VM_NET_OPT_INTERNAL="--network network=$VM_NET_NAME,model=rtl8139,mac=$VM_INT_MAC"
-	if virsh net-dumpxml $VM_NET_NAME | grep -q $VM_INT_IP; then
-		virsh net-update $VM_NET_NAME delete ip-dhcp-host "<host ip='$VM_INT_IP' />" --live --config
-	fi
-	virsh net-update $VM_NET_NAME add ip-dhcp-host "<host mac='$VM_INT_MAC' name='$VM_NAME' ip='$VM_INT_IP' />" --live --config
-
-	VM_NET_OPT="$VM_NET_OPT_INTERNAL $VM_NET_OPT_EXTRA"
+	VM_NET_OPT_EXTERNAL="type=direct,source=$DEFAULT_IF,source_mode=vepa,mac=$VM_EXT_MAC"
 else
-	echo -e "\n{INFO} MacvTap:bridge mode setup ..."
 	if [ $DEFAULT_IF != "br0" ]; then
 		virsh iface-bridge $DEFAULT_IF br0
 		systemctl restart network >/dev/null
 	fi
-	VM_NET_OPT="--network bridge=br0,model=rtl8139,mac=$VM_EXT_MAC"
+	VM_NET_OPT_EXTERNAL="bridge=br0,model=rtl8139,mac=$VM_EXT_MAC"
 fi
 
-# Parameters
+echo -e "\n{INFO} vm nic for inside network(mac: $VM_INT_MAC) ..."
+VM_NET_NAME=default
+VM_INT_MAC=$(gen_virt_mac)
+VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139,mac=$VM_INT_MAC"
+
+# VM disk parameters ...
 ANSF_MEDIA_TYPE=${ANSF_MEDIA_TYPE:-floppy}
-VM_IMG_DIR=/var/lib/libvirt/images
 ANSF_CDROM=${ANSF_CDROM:-$VM_IMG_DIR/$VM_NAME-ansf-cdrom.iso}
 ANSF_FLOPPY=${ANSF_FLOPPY:-$VM_IMG_DIR/$VM_NAME-ansf-floppy.vfd}
 VM_IMAGE=${VM_IMAGE:-$VM_IMG_DIR/$VM_NAME.qcow2}
 SERIAL_PATH=/tmp/serial-$(date +%Y%m%d%H%M%S).$$
-VIRTHOST=$(hostname -f)
 
 # ====================================================================
 # Generate cdrom/floppy of answerfiles
@@ -195,6 +182,7 @@ process_ansf() {
 	local destdir=$1; shift
 	for f; do fname=${f##*/}; cp ${f} $destdir/${fname%.in}; done
 
+	local VIRTHOST=$(hostname -f)
 	sed -i -e "s/@ADMINPASSWORD@/$ADMINPASSWORD/g" \
 		-e "s/@ADMINNAME@/$ADMINNAME/g" \
 		-e "s/@AD_DOMAIN@/$DOMAIN/g" \
@@ -206,8 +194,8 @@ process_ansf() {
 		-e "s/@INSTALL_COMPLETE@/$INSTALL_COMPLETE/g" \
 		-e "s/@AD_FOREST_LEVEL@/$AD_FOREST_LEVEL/g" \
 		-e "s/@AD_DOMAIN_LEVEL@/$AD_DOMAIN_LEVEL/g" \
-		-e "s/@MAC_DISABLE@/$MAC_DISABLE/g" \
-		-e "s/@DNS_IF_MAC@/$DNS_IF_MAC/g" \
+		-e "s/@MAC_DISABLE@/$VM_INT_MAC/g" \
+		-e "s/@DNS_IF_MAC@/$VM_EXT_MAC/g" \
 		-e "s/@VIRTHOST@/$VIRTHOST/g" \
 		-e "s/@IPCONFIG_LOG@/$IPCONFIG_LOG/g" \
 		$destdir/*
@@ -254,27 +242,24 @@ virt-install --connect=qemu:///system --hvm --clock offset=utc \
 	--disk path=$VM_IMAGE,bus=ide,size=$VM_DISKSIZE,format=qcow2,cache=none \
 	--disk path=$ANSF_MEDIA_PATH,device=$ANSF_MEDIA_TYPE \
 	--serial file,path=$SERIAL_PATH --serial pty \
-	$VM_NET_OPT \
+	--network $VM_NET_OPT_EXTERNAL --network $VM_NET_OPT_INTERNAL \
 	--vnc --vnclisten 0.0.0.0 --vncport ${VNC_PORT:-7788} || { echo error $? from virt-install ; exit 1 ; }
 
 # To check whether the installation is done
 echo -e "\n{INFO} waiting install done ..."
 fsdev=/dev/sdb1
 [[ "$ANSF_MEDIA_TYPE" = floppy ]] && fsdev=/dev/sdc
-install_done=no
-t=${VM_TIMEOUT:-60}
-while ((t-- > 0)) ; do
-	virt-ls -d $VM_NAME -m $fsdev / 2>/dev/null | grep -q "$INSTALL_COMPLETE" && {
-		install_done=yes; break;
-	}
+for ((i=0; i<=VM_TIMEOUT; i++)) ; do
+	virt-ls -d $VM_NAME -m $fsdev / 2>/dev/null | grep -q "$INSTALL_COMPLETE" && break
 	sleep 1m
 done
-[[ $install_done != yes ]] && {
-	echo -e "\n{WARN} Install timeout($VM_TIMEOUT)"
-}
-virt-cat -d $VM_NAME -m $fsdev /$IPCONFIG_LOG >/tmp/$VM_NAME.ipconfig
-VM_INT_IP=$(awk '/IPv4 Address/ {if ($NF ~ /^192/) print $NF}' /tmp/$VM_NAME.ipconfig)
-VM_EXT_IP=$(awk '/IPv4 Address/ {if ($NF !~ /^192/) print $NF}' /tmp/$VM_NAME.ipconfig)
+((i > $VM_TIMEOUT)) && { echo -e "\n{WARN} Install timeout($VM_TIMEOUT)"; }
+
+# Get VM IP address
+WIN_IPCONFIG=/tmp/$VM_NAME.ipconfig
+virt-cat -d $VM_NAME -m $fsdev /$IPCONFIG_LOG >$WIN_IPCONFIG
+VM_INT_IP=$(awk '/IPv4 Address/ {if ($NF ~ /^192/) print $NF}' $WIN_IPCONFIG)
+VM_EXT_IP=$(awk '/IPv4 Address/ {if ($NF !~ /^192/) print $NF}' $WIN_IPCONFIG)
 
 # Eject CDs
 echo -e "\n{INFO} eject media ..."
