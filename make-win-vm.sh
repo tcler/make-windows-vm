@@ -122,8 +122,10 @@ AD_DOMAIN_LEVEL=${AD_DOMAIN_LEVEL:-$AD_FOREST_LEVEL}
 # =======================================================================
 # Global variable
 # =======================================================================
-IPCONFIG_LOG=ipconfig.log
-INSTALL_COMPLETE=installcomplete
+IPCONFIG_LOGF=ipconfig.log
+INSTALL_COMPLETE_FILE=installcomplete
+POST_INSTALL_LOGP=C:
+POST_INSTALL_LOGF=postinstall.log
 VM_IMG_DIR=/var/lib/libvirt/images
 VM_TIMEOUT=${VM_TIMEOUT:-60}
 
@@ -163,9 +165,9 @@ else
 	VM_NET_OPT_EXTERNAL="bridge=br0,model=rtl8139,mac=$VM_EXT_MAC"
 fi
 
-echo -e "\n{INFO} vm nic for inside network(mac: $VM_INT_MAC) ..."
 VM_NET_NAME=default
 VM_INT_MAC=$(gen_virt_mac)
+echo -e "\n{INFO} vm nic for inside network(mac: $VM_INT_MAC) ..."
 VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139,mac=$VM_INT_MAC"
 
 # VM disk parameters ...
@@ -191,13 +193,14 @@ process_ansf() {
 		-e "s/@FQDN@/$FQDN/g" \
 		-e "s/@PRODUCT_KEY@/$PRODUCT_KEY/g" \
 		-e "s/@ANSF_DRIVE_LETTER@/$ANSF_DRIVE_LETTER/g" \
-		-e "s/@INSTALL_COMPLETE@/$INSTALL_COMPLETE/g" \
+		-e "s/@INSTALL_COMPLETE_FILE@/$INSTALL_COMPLETE_FILE/g" \
 		-e "s/@AD_FOREST_LEVEL@/$AD_FOREST_LEVEL/g" \
 		-e "s/@AD_DOMAIN_LEVEL@/$AD_DOMAIN_LEVEL/g" \
 		-e "s/@MAC_DISABLE@/$VM_INT_MAC/g" \
 		-e "s/@DNS_IF_MAC@/$VM_EXT_MAC/g" \
 		-e "s/@VIRTHOST@/$VIRTHOST/g" \
-		-e "s/@IPCONFIG_LOG@/$IPCONFIG_LOG/g" \
+		-e "s/@IPCONFIG_LOGF@/$IPCONFIG_LOGF/g" \
+		-e "s/@POST_INSTALL_LOG@/$POST_INSTALL_LOGP\\\\$POST_INSTALL_LOGF/g" \
 		$destdir/*
 	unix2dos $destdir/* >/dev/null
 	[[ -z "$PRODUCT_KEY" ]] &&
@@ -205,12 +208,13 @@ process_ansf() {
 }
 
 echo -e "\n{INFO} make answer file media ..."
-rm -f $ANSF_FLOPPY $ANSF_CDROM  #remove old/exist media file
+\rm -f $ANSF_FLOPPY $ANSF_CDROM  #remove old/exist media file
 media_mp=$(mktemp -d)
 case "$ANSF_MEDIA_TYPE" in
 "floppy")
 	ANSF_MEDIA_PATH=$ANSF_FLOPPY
 	ANSF_DRIVE_LETTER="A:"
+	POST_INSTALL_LOGP="A:"
 	mkfs.vfat -C $ANSF_FLOPPY 1440 || { echo error $? from mkfs.vfat -C $ANSF_FLOPPY 1440; exit 1; }
 	mount -o loop -t vfat $ANSF_FLOPPY $media_mp
 	process_ansf $media_mp "$@"
@@ -223,7 +227,7 @@ case "$ANSF_MEDIA_TYPE" in
 	genisoimage -iso-level 4 -J -l -R -o $ANSF_CDROM $media_mp
 	;;
 esac
-rm -rf $media_mp
+\rm -rf $media_mp
 
 # Place libguestfs temporary files in properly labeled dir
 TMPDIR="/tmp/libguestfs"
@@ -233,7 +237,7 @@ chcon -t svirt_tmp_t $TMPDIR
 
 # Execute virt-install command with the parameters given
 echo -e "\n{INFO} virt-install ..."
-rm -f $VM_IMAGE
+\rm -f $VM_IMAGE
 virt-install --connect=qemu:///system --hvm --clock offset=utc \
 	--accelerate --cpu host,-invtsc \
 	--name "$VM_NAME" --ram=${VM_RAM:-2048} --vcpu=${VM_CPUS:-2} \
@@ -244,22 +248,23 @@ virt-install --connect=qemu:///system --hvm --clock offset=utc \
 	--serial file,path=$SERIAL_PATH --serial pty \
 	--network $VM_NET_OPT_EXTERNAL --network $VM_NET_OPT_INTERNAL \
 	--vnc --vnclisten 0.0.0.0 --vncport ${VNC_PORT:-7788} || { echo error $? from virt-install ; exit 1 ; }
+\rm $SERIAL_PATH
 
 # To check whether the installation is done
 echo -e "\n{INFO} waiting install done ..."
 fsdev=/dev/sdb1
 [[ "$ANSF_MEDIA_TYPE" = floppy ]] && fsdev=/dev/sdc
 for ((i=0; i<=VM_TIMEOUT; i++)) ; do
-	virt-ls -d $VM_NAME -m $fsdev / 2>/dev/null | grep -q "$INSTALL_COMPLETE" && break
+	virt-ls -d $VM_NAME -m $fsdev / 2>/dev/null | grep -q "$INSTALL_COMPLETE_FILE" && break
 	sleep 1m
 done
 ((i > $VM_TIMEOUT)) && { echo -e "\n{WARN} Install timeout($VM_TIMEOUT)"; }
 
-# Get VM IP address
-WIN_IPCONFIG=/tmp/$VM_NAME.ipconfig
-virt-cat -d $VM_NAME -m $fsdev /$IPCONFIG_LOG >$WIN_IPCONFIG
-VM_INT_IP=$(awk '/IPv4 Address/ {if ($NF ~ /^192/) print $NF}' $WIN_IPCONFIG)
-VM_EXT_IP=$(awk '/IPv4 Address/ {if ($NF !~ /^192/) print $NF}' $WIN_IPCONFIG)
+# Get install and ipconfig log
+WIN_INSTALL_LOG=/tmp/$VM_NAME.install.log
+virt-cat -d $VM_NAME -m $fsdev /$POST_INSTALL_LOGF >$WIN_INSTALL_LOG
+WIN_IPCONFIG_LOG=/tmp/$VM_NAME.ipconfig.txt
+virt-cat -d $VM_NAME -m $fsdev /$IPCONFIG_LOGF >$WIN_IPCONFIG_LOG
 
 # Eject CDs
 echo -e "\n{INFO} eject media ..."
@@ -270,6 +275,9 @@ eject_cds $VM_NAME  $WIN_ISO $ANSF_MEDIA_PATH
 # =======================================================================
 # When installation is done, test AD connection and get AD CA cert
 echo -e "\n{INFO} get cert test ..."
+VM_INT_IP=$(awk '/IPv4 Address/ {if ($NF ~ /^192/) print $NF}' $WIN_IPCONFIG_LOG)
+VM_EXT_IP=$(awk '/IPv4 Address/ {if ($NF !~ /^192/) print $NF}' $WIN_IPCONFIG_LOG)
+
 ldapurl=ldap://${VM_EXT_IP}
 [[ "$MacvTap" = vepa ]] && ldapurl=ldap://${VM_INT_IP}
 echo -e "\n{INFO} get_cert $VM_NAME $FQDN $DOMAIN $ADMINNAME:$ADMINPASSWORD $ldapurl"
@@ -277,7 +285,7 @@ get_cert $VM_NAME $FQDN $DOMAIN $ADMINNAME:$ADMINPASSWORD $ldapurl
 
 # Save relative variables info a log file
 echo -e "\n{INFO} show guest info:"
-VM_INFO_FILE=/tmp/$VM_NAME.info
+VM_INFO_FILE=/tmp/$VM_NAME.env
 cat <<-EOF | tee $VM_INFO_FILE
 	VM_NAME=$VM_NAME
 	VM_INT_IP=$VM_INT_IP
@@ -289,4 +297,4 @@ cat <<-EOF | tee $VM_INFO_FILE
 	NETBIOS_NAME=$NETBIOS_NAME
 
 EOF
-cat /tmp/$VM_NAME.ipconfig
+cat $WIN_IPCONFIG_LOG

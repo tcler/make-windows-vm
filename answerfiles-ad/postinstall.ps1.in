@@ -7,6 +7,10 @@ Function out-host {
 
 out-host "==> Start postinstall ..."
 
+$logpath = "C:"
+if (Test-Path -Path A:) {
+	$logpath = "A:"
+}
 $postprog = "@ANSF_DRIVE_LETTER@\postinstall.ps1"
 $RunOnceKey = "HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce"
 
@@ -32,10 +36,7 @@ switch($stage) {
 
 		# saving network connection details
 		out-host "`n==> save ipconfig info"
-		ipconfig | out-file -encoding utf8 C:\@IPCONFIG_LOG@
-		if (Test-Path -Path A:) {
-			ipconfig | out-file -encoding utf8 A:\@IPCONFIG_LOG@
-		}
+		ipconfig | out-file -encoding utf8 $logpath\@IPCONFIG_LOGF@
 
 		# disabling IE ESC (Internet Explorer Enhanced Security Configuration)
 		out-host "`n==> disabling IE ESC (Internet Explorer Enhanced Security Configuration)"
@@ -81,7 +82,7 @@ switch($stage) {
 
 		# Reboot to complete Active Directory setup
 		out-host "`n==> Reboot to complete Active Directory setup"
-		Set-ItemProperty $RunOnceKey "NextRun" "powershell $postprog afterADSetup >> c:\postinstall.log 2>&1"
+		Set-ItemProperty $RunOnceKey "NextRun" "powershell $postprog afterADSetup >> @POST_INSTALL_LOG@ 2>&1"
 		shutdown -r -f -t 10 -c "Shutting down in 1 minute: Reboot to complete Active Directory setup"
 	}
 
@@ -99,7 +100,7 @@ switch($stage) {
 
 		# Reboot to complete Cert Services setup
 		out-host "`n==> Reboot to complete Cert Services setup"
-		Set-ItemProperty $RunOnceKey "NextRun" "powershell $postprog afterCertSetup >> c:\postinstall.log 2>&1"
+		Set-ItemProperty $RunOnceKey "NextRun" "powershell $postprog afterCertSetup >> @POST_INSTALL_LOG@ 2>&1"
 		shutdown -r -f -t 10 -c "Shutting down in 1 minute: Reboot to complete Cert Services setup"
 	}
 
@@ -124,9 +125,6 @@ switch($stage) {
 
 		# complete
 		out-host "`n==> install complete!!!"
-		echo "install complete" | out-file -encoding utf8 C:\@INSTALL_COMPLETE@
-		if (Test-Path -Path A:) {
-			echo "install complete" | out-file -encoding utf8 A:\@INSTALL_COMPLETE@
-		}
+		echo "install complete" | out-file -encoding utf8 $logpath\@INSTALL_COMPLETE_FILE@
 	}
 }
