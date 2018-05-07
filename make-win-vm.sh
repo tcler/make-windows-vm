@@ -276,7 +276,8 @@ done
 
 # Get install and ipconfig log
 WIN_INSTALL_LOG=/tmp/$VM_NAME.install.log
-virt-cat -d $VM_NAME -m $fsdev /$POST_INSTALL_LOGF >$WIN_INSTALL_LOG
+virt-cat -d $VM_NAME -m $fsdev /$POST_INSTALL_LOGF |
+	iconv -f UTF-16LE -t UTF-8 - >$WIN_INSTALL_LOG
 WIN_IPCONFIG_LOG=/tmp/$VM_NAME.ipconfig.txt
 virt-cat -d $VM_NAME -m $fsdev /$IPCONFIG_LOGF >$WIN_IPCONFIG_LOG
 
@@ -302,8 +303,6 @@ cat <<-EOF | tee $VM_INFO_FILE
 	FQDN=$FQDN
 	NETBIOS_NAME=$NETBIOS_NAME
 EOF
-echo
-cat $WIN_IPCONFIG_LOG
 
 # Test AD connection and get AD CA cert
 echo -e "\n{INFO} Please run follow command to test AD connection"
