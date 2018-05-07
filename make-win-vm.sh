@@ -273,6 +273,8 @@ done
 	echo -e "\n{WARN} Install timeout($VM_TIMEOUT)"
 }
 virt-cat -d $VM_NAME -m $fsdev /$IPCONFIG_LOG >/tmp/$VM_NAME.ipconfig
+VM_INT_IP=$(awk '/IPv4 Address/ {if ($NF ~ /^192/) print $NF}' /tmp/$VM_NAME.ipconfig)
+VM_EXT_IP=$(awk '/IPv4 Address/ {if ($NF !~ /^192/) print $NF}' /tmp/$VM_NAME.ipconfig)
 
 # Eject CDs
 echo -e "\n{INFO} eject media ..."
@@ -291,8 +293,6 @@ get_cert $VM_NAME $FQDN $DOMAIN $ADMINNAME:$ADMINPASSWORD $ldapurl
 # Save relative variables info a log file
 echo -e "\n{INFO} show guest info:"
 VM_INFO_FILE=/tmp/$VM_NAME.info
-VM_EXT_IP=$(grep IPv4.Address /tmp/$VM_NAME.ipconfig |
-	grep -v 192.168.122 | egrep -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
 cat <<-EOF | tee $VM_INFO_FILE
 	VM_NAME=$VM_NAME
 	VM_INT_IP=$VM_INT_IP
