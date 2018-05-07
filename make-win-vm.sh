@@ -280,6 +280,7 @@ virt-cat -d $VM_NAME -m $fsdev /$POST_INSTALL_LOGF |
 	iconv -f UTF-16LE -t UTF-8 - >$WIN_INSTALL_LOG
 WIN_IPCONFIG_LOG=/tmp/$VM_NAME.ipconfig.txt
 virt-cat -d $VM_NAME -m $fsdev /$IPCONFIG_LOGF >$WIN_IPCONFIG_LOG
+unset TMPDIR
 
 # Eject CDs
 echo -e "\n{INFO} eject media ..."

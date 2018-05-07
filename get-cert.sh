@@ -19,12 +19,13 @@ get_cert() {
 	local win_ca_cert_file=/tmp/$vmname.crt
 	local admin_dn="cn=$user,cn=users,$ad_suffix"
 
-	echo "-----BEGIN CERTIFICATE-----" > $tmp_cacert
-	ldapsearch -xLLL -H $ldapurl -D "$admin_dn" -w "$passwd" -s base \
-			-b "$ca_cert_dn" "objectclass=*" cACertificate | perl -p0e 's/\n //g' | \
-			sed -e '/^cACertificate/ { s/^cACertificate:: //; s/\(.\{1,64\}\)/\1\n/g; p }' -e 'd' | \
-			grep -v '^$' >> $tmp_cacert
-	echo "-----END CERTIFICATE-----" >> $tmp_cacert
+	local data=
+	until data=$(ldapsearch -xLLL -H $ldapurl -D "$admin_dn" -w "$passwd" -s base -b "$ca_cert_dn" "objectclass=*" cACertificate); do sleep 1; done
+	{
+		echo "-----BEGIN CERTIFICATE-----"
+		echo "$data" | xargs | sed -r -e 's/.*cACertificate:: //' -e 's/ //g;' -e 's/(.{64})/\1\n/g;'
+		echo "-----END CERTIFICATE-----"
+	} >$tmp_cacert
 	cat $tmp_cacert
 	echo Now test our CA cert
 
@@ -37,6 +38,6 @@ get_cert() {
 		ldapsearch -d 1 -xLLL -ZZ -H $ldapurl -s base -b "" "objectclass=*" currenttime
 	fi  
 	\cp -p $tmp_cacert $win_ca_cert_file
-	rm -f $tmp_cacert
+	\rm -f $tmp_cacert
 }
 get_cert "$@"

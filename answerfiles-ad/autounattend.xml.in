@@ -21,8 +21,7 @@ Sample answer file for headless deployment
             </OOBE>
             <FirstLogonCommands>
                 <SynchronousCommand wcm:action="add">
-                    <CommandLine>powershell -NoProfile -ExecutionPolicy Bypass -Command @ANSF_DRIVE_LETTER@\postinstall.ps1 > @POST_INSTALL_LOG@ 2>&1
-                    </CommandLine>
+                    <CommandLine>powershell -NoProfile -ExecutionPolicy Bypass -Command @ANSF_DRIVE_LETTER@\postinstall.ps1 > @POST_INSTALL_LOG@ 2>&1</CommandLine>
                     <Order>1</Order>
                     <Description>Run Post-Install commands</Description>
                 </SynchronousCommand>
