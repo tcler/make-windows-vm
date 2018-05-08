@@ -19,7 +19,7 @@ get_cert() {
 	local win_ca_cert_file=/tmp/$vmname.crt
 	local admin_dn="cn=$user,cn=users,$ad_suffix"
 
-	local i=0
+	local i=1
 	local data=
 	until data=$(ldapsearch -xLLL -H $ldapurl -D "$admin_dn" -w "$passwd" -s base -b "$ca_cert_dn" "objectclass=*" cACertificate) || ((i++>5)); do sleep 3; done
 	{
@@ -28,8 +28,8 @@ get_cert() {
 		echo "-----END CERTIFICATE-----"
 	} >$tmp_cacert
 	cat $tmp_cacert
-	echo Now test our CA cert
 
+	echo Now test our CA cert
 	export LDAPTLS_CACERT=$tmp_cacert
 	export LDAPTLS_REQCERT=$ldapreqcert
 	if ldapsearch -xLLL -ZZ -H $ldapurl -D "$admin_dn" -w "$passwd" -s base -b "" "objectclass=*" currenttime > /dev/null 2>&1; then

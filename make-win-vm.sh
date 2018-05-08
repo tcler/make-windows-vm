@@ -243,12 +243,6 @@ case "$ANSF_MEDIA_TYPE" in
 esac
 \rm -rf $media_mp
 
-# Place libguestfs temporary files in properly labeled dir
-TMPDIR="/tmp/libguestfs"
-export TMPDIR
-mkdir -p $TMPDIR
-chcon -t svirt_tmp_t $TMPDIR
-
 # Execute virt-install command with the parameters given
 echo -e "\n{INFO} virt-install ..."
 \rm -f $VM_IMAGE
@@ -280,7 +274,6 @@ virt-cat -d $VM_NAME -m $fsdev /$POST_INSTALL_LOGF |
 	iconv -f UTF-16LE -t UTF-8 - >$WIN_INSTALL_LOG
 WIN_IPCONFIG_LOG=/tmp/$VM_NAME.ipconfig.txt
 virt-cat -d $VM_NAME -m $fsdev /$IPCONFIG_LOGF >$WIN_IPCONFIG_LOG
-unset TMPDIR
 
 # Eject CDs
 echo -e "\n{INFO} eject media ..."
