@@ -263,7 +263,7 @@ echo -e "\n{INFO} waiting install done ..."
 fsdev=/dev/sdb1
 [[ "$ANSF_MEDIA_TYPE" = floppy ]] && fsdev=/dev/sdc
 for ((i=0; i<=VM_TIMEOUT; i++)) ; do
-	virt-ls -d $VM_NAME -m $fsdev / 2>/dev/null | grep -q "$INSTALL_COMPLETE_FILE" && break
+	virt-cat -d $VM_NAME -m $fsdev /$INSTALL_COMPLETE_FILE &>/dev/null && break
 	sleep 1m
 done
 ((i > $VM_TIMEOUT)) && { echo -e "\n{WARN} Install timeout($VM_TIMEOUT)"; }
@@ -274,6 +274,7 @@ virt-cat -d $VM_NAME -m $fsdev /$POST_INSTALL_LOGF |
 	iconv -f UTF-16LE -t UTF-8 - >$WIN_INSTALL_LOG
 WIN_IPCONFIG_LOG=/tmp/$VM_NAME.ipconfig.txt
 virt-cat -d $VM_NAME -m $fsdev /$IPCONFIG_LOGF >$WIN_IPCONFIG_LOG
+dos2unix $WIN_INSTALL_LOG $WIN_IPCONFIG_LOG
 
 # Eject CDs
 echo -e "\n{INFO} eject media ..."
@@ -284,8 +285,11 @@ eject_cds $VM_NAME  $WIN_ISO $ANSF_MEDIA_PATH
 # =======================================================================
 # Save relative variables into a log file
 echo -e "\n{INFO} show guest info:"
-VM_INT_IP=$(awk '/IPv4 Address/ {if ($NF ~ /^192/) print $NF}' $WIN_IPCONFIG_LOG)
-VM_EXT_IP=$(awk '/IPv4 Address/ {if ($NF !~ /^192/) print $NF}' $WIN_IPCONFIG_LOG)
+VM_INT_IP=$(awk '/^ *IPv4 Address/ {if ($NF ~ /^192/) print $NF}' $WIN_IPCONFIG_LOG)
+VM_EXT_IP=$(awk '/^ *IPv4 Address/ {if ($NF !~ /^192/) print $NF}' $WIN_IPCONFIG_LOG)
+VM_EXT_IP6=$(awk '/^ *IPv6 Address/ {printf("[%s]", $NF)}' $WIN_IPCONFIG_LOG)
+[[ -z "$VM_EXT_IP" ]] && VM_EXT_IP=$VM_EXT_IP6
+
 VM_INFO_FILE=/tmp/$VM_NAME.env
 cat <<-EOF | tee $VM_INFO_FILE
 	VM_NAME=$VM_NAME
@@ -302,3 +306,4 @@ EOF
 echo -e "\n{INFO} Please run follow command to test AD connection"
 ldapurl=ldap://${VM_INT_IP}
 echo "./get-cert.sh $VM_NAME $FQDN $DOMAIN $ADMINNAME:$ADMINPASSWORD $ldapurl"
+echo "./get-cert.sh $VM_NAME $FQDN $DOMAIN $ADMINNAME:$ADMINPASSWORD $ldapurl"|bash
