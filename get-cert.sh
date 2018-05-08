@@ -19,8 +19,9 @@ get_cert() {
 	local win_ca_cert_file=/tmp/$vmname.crt
 	local admin_dn="cn=$user,cn=users,$ad_suffix"
 
+	local i=0
 	local data=
-	until data=$(ldapsearch -xLLL -H $ldapurl -D "$admin_dn" -w "$passwd" -s base -b "$ca_cert_dn" "objectclass=*" cACertificate); do sleep 1; done
+	until data=$(ldapsearch -xLLL -H $ldapurl -D "$admin_dn" -w "$passwd" -s base -b "$ca_cert_dn" "objectclass=*" cACertificate) || ((i++>5)); do sleep 3; done
 	{
 		echo "-----BEGIN CERTIFICATE-----"
 		echo "$data" | xargs | sed -r -e 's/.*cACertificate:: //' -e 's/ //g;' -e 's/(.{64})/\1\n/g;'
