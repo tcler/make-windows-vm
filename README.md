@@ -9,7 +9,7 @@
 ```
 sudo yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 sudo yum install libvirt libvirt-client virt-install virt-viewer qemu-kvm genisoimage \
-  libguestfs-tools libguestfs-tools-c openldap-clients dosfstools unix2dos glibc-common libguestfs-winsupport
+  libguestfs-tools libguestfs-tools-c openldap-clients dos2unix glibc-common libguestfs-winsupport
 ```
 
 ## example
