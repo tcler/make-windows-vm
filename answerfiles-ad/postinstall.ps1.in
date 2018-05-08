@@ -98,27 +98,13 @@ switch($stage) {
 		Add-WindowsFeature Adcs-Cert-Authority -IncludeManagementTools
 		Install-AdcsCertificationAuthority -force -CAType EnterpriseRootCa
 
-		# Reboot to complete Cert Services setup
-		out-host "`n==> Reboot to complete Cert Services setup"
-		Set-ItemProperty $RunOnceKey "NextRun" "powershell $postprog afterCertSetup >> @POST_INSTALL_LOG@ 2>&1"
-		shutdown -r -f -t 10 -c "Shutting down in 1 minute: Reboot to complete Cert Services setup"
+		# Reboot to complete Root CA Services setup
+		out-host "`n==> Reboot to complete Root CA setup"
+		Set-ItemProperty $RunOnceKey "NextRun" "powershell $postprog afterRootCASetup >> @POST_INSTALL_LOG@ 2>&1"
+		shutdown -r -f -t 10 -c "Shutting down in 1 minute: Reboot to complete Root CA setup"
 	}
 
-	"afterCertSetup" {
-		# cho create cert request for AD, sign it, and install it
-		out-host "`n==> cho create cert request for AD, sign it, and install it"
-		certreq -v -q -new @ANSF_DRIVE_LETTER@\adcertreq.inf c:\adcertreq.req
-		certreq -v -q -submit -attrib "CertificateTemplate:DomainController" c:\adcertreq.req
-
-		# this assumes the request ID is 2 -  request 1 was the creation of the CA cert itself
-		# not sure how it is possible to capture the request ID from the certreq -submit output
-		$requestid = 2
-		certutil -resubmit $requestid
-		certreq -v -q -retrieve $requestid c:\ad.cer c:\ad.p7b
-		certreq -v -q -accept c:\ad.p7b
-		certutil -store my
-		# you should now be able to access AD via TLS/SSL
-
+	"afterRootCASetup" {
 		# Add KDC
 		out-host "`n==> Add KDC"
 		ksetup.exe /AddKDC @NETBIOS_NAME@ @FQDN@
