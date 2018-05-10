@@ -29,13 +29,13 @@ create_bridge() {
 		local dev=$(get_default_if dev)
 		echo "[${FUNCNAME[0]}] bridge $brname exist"
 		grep -q "^ *BRIDGE=$brname" $net_script_path/ifcfg-$dev || {
-			echo "[${FUNCNAME[0]}] br addif and restart network service ..."
+			echo "[${FUNCNAME[0]}] br addif($brname $dev) and restart network service ..."
 			echo "BRIDGE=$brname" >>$net_script_path/ifcfg-$dev
 			service network restart >/dev/null
 		}
 	else
 		local iface=$(get_default_if)
-		echo "[${FUNCNAME[0]}] creating $brname ..."
+		echo "[${FUNCNAME[0]}] creating bridge($brname $iface) ..."
 		echo -e "TYPE=Bridge\nBOOTPROTO=dhcp\nDEVICE=$brname\nONBOOT=yes" \
 			> $net_script_path/ifcfg-$brname
 		grep -q "^ *BRIDGE=$brname" $net_script_path/ifcfg-$iface || {
@@ -54,7 +54,7 @@ br_delif() {
 
 	if is_bridge $br; then
 		local dev=$(get_default_if dev)
-		echo "[${FUNCNAME[0]}] br delif and restart network service ..."
+		echo "[${FUNCNAME[0]}] br delif($br $dev) and restart network service ..."
 		sed -i "/BRIDGE=$br *$/d" $net_script_path/ifcfg-$dev
 		service network restart >/dev/null
 	fi
