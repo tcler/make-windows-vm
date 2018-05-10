@@ -2,6 +2,63 @@
 
 PROG=${0##*/}
 
+is_bridge() {
+	local ifname=$1
+	[[ -z "$ifname" || -n "$(brctl show $iface 2>&1 >/dev/null)" ]] && return 1
+	return 0
+}
+
+get_default_if() {
+	local dev=$1
+	local iface=
+
+	iface=$(ip route get 1 | awk '/^[0-9]/{print $5}')
+	if [[ -n "$dev" ]] && is_bridge $iface; then
+		brctl show $iface | awk 'NR==2 {print $4}'
+		return 0
+	fi
+	echo $iface
+}
+
+create_bridge() {
+	local brname=${1:-br0}
+	local net_script_path=/etc/sysconfig/network-scripts
+
+	if is_bridge $brname; then
+		local dev=$(get_default_if dev)
+		echo "[${FUNCNAME[0]}] bridge $brname exist"
+		grep "^ *BRIDGE=$brname" $net_script_path/ifcfg-$dev || {
+			echo "[${FUNCNAME[0]}] br addif and restart network service ..."
+			echo "BRIDGE=$brname" >>$net_script_path/ifcfg-$dev
+			service network restart >/dev/null
+		}
+	else
+		local iface=$(get_default_if)
+		echo "[${FUNCNAME[0]}] creating $brname ..."
+		echo -e "TYPE=Bridge\nBOOTPROTO=dhcp\nDEVICE=$brname\nONBOOT=yes" \
+			> $net_script_path/ifcfg-$brname
+		grep "^ *BRIDGE=$brname" $net_script_path/ifcfg-$iface || {
+			echo "BRIDGE=$brname" >>$net_script_path/ifcfg-$iface
+		}
+		echo "[${FUNCNAME[0]}] restart network service ..."
+		service network restart >/dev/null
+	fi
+	echo
+	brctl show $brname
+}
+
+br_delif() {
+	local net_script_path=/etc/sysconfig/network-scripts
+	local br=$(get_default_if)
+
+	if is_bridge $br; then
+		local dev=$(get_default_if dev)
+		echo "[${FUNCNAME[0]}] br delif and restart network service ..."
+		sed -i "/BRIDGE=$br *$/d" $net_script_path/ifcfg-$dev
+		service network restart >/dev/null
+	fi
+}
+
 # Generate a random mac address with 54:52:00: prefix
 gen_virt_mac() {
     echo 54:52:00:${1:-00}$(od -txC -An -N2 /dev/random | tr \  :)
@@ -129,8 +186,8 @@ AD_DOMAIN_LEVEL=${AD_DOMAIN_LEVEL:-$AD_FOREST_LEVEL}
 	exit 1
 }
 [[ -z "$PRODUCT_KEY" ]] && {
-	echo -e "[WARN] *** There is no Product Key specified, We assume that you are using evaluation version."
-	echo -e "[WARN] *** Otherwise please use the '--product-key <key>' to ensure successful installation."
+	echo -e "{WARN} *** There is no Product Key specified, We assume that you are using evaluation version."
+	echo -e "{WARN} *** Otherwise please use the '--product-key <key>' to ensure successful installation."
 }
 
 # =======================================================================
@@ -167,16 +224,15 @@ systemctl restart virtlogd.service
 # VM network parameters
 MacvTap=${MacvTap:-vepa}
 VM_EXT_MAC=$(gen_virt_mac 01)
-DEFAULT_IF=$(ip -4 route get 1 | head -n 1 | awk '{print $5}')
+BR_NAME=br0
 echo -e "\n{INFO} vm nic for reach outside network(mac: $VM_EXT_MAC) (MacvTap:$MacvTap) ..."
 if [[ "$MacvTap" = vepa ]]; then
-	VM_NET_OPT_EXTERNAL="type=direct,source=$DEFAULT_IF,source_mode=vepa,mac=$VM_EXT_MAC"
+	br_delif
+	DEFAULT_NIC=$(get_default_if dev)
+	VM_NET_OPT_EXTERNAL="type=direct,source=$DEFAULT_NIC,source_mode=vepa,mac=$VM_EXT_MAC"
 else
-	if [ $DEFAULT_IF != "br0" ]; then
-		virsh iface-bridge $DEFAULT_IF br0
-		systemctl restart network >/dev/null
-	fi
-	VM_NET_OPT_EXTERNAL="bridge=br0,model=rtl8139,mac=$VM_EXT_MAC"
+	create_bridge $BR_NAME
+	VM_NET_OPT_EXTERNAL="bridge=$BR_NAME,model=rtl8139,mac=$VM_EXT_MAC"
 fi
 
 VM_NET_NAME=default
