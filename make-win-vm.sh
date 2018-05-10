@@ -1,5 +1,6 @@
 #!/bin/bash
 
+LANG=C
 PROG=${0##*/}
 
 is_bridge() {
@@ -27,7 +28,7 @@ create_bridge() {
 	if is_bridge $brname; then
 		local dev=$(get_default_if dev)
 		echo "[${FUNCNAME[0]}] bridge $brname exist"
-		grep "^ *BRIDGE=$brname" $net_script_path/ifcfg-$dev || {
+		grep -q "^ *BRIDGE=$brname" $net_script_path/ifcfg-$dev || {
 			echo "[${FUNCNAME[0]}] br addif and restart network service ..."
 			echo "BRIDGE=$brname" >>$net_script_path/ifcfg-$dev
 			service network restart >/dev/null
@@ -37,7 +38,7 @@ create_bridge() {
 		echo "[${FUNCNAME[0]}] creating $brname ..."
 		echo -e "TYPE=Bridge\nBOOTPROTO=dhcp\nDEVICE=$brname\nONBOOT=yes" \
 			> $net_script_path/ifcfg-$brname
-		grep "^ *BRIDGE=$brname" $net_script_path/ifcfg-$iface || {
+		grep -q "^ *BRIDGE=$brname" $net_script_path/ifcfg-$iface || {
 			echo "BRIDGE=$brname" >>$net_script_path/ifcfg-$iface
 		}
 		echo "[${FUNCNAME[0]}] restart network service ..."
