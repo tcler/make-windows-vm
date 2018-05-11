@@ -105,6 +105,13 @@ switch($stage) {
 	}
 
 	"afterRootCASetup" {
+		# Time synchronization
+		out-host "`n==> sync time"
+		w32tm /config /manualpeerlist:clock.redhat.com /syncfromflags:manual /reliable:yes /update
+		net stop w32time
+		net start w32time
+		w32tm /resync
+
 		# Add KDC
 		out-host "`n==> Add KDC"
 		ksetup.exe /AddKDC @NETBIOS_NAME@ @FQDN@
