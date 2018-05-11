@@ -5,6 +5,16 @@ Function out-host {
 	echo "$str"
 }
 
+Function Unzip-File() {
+        param([string]$ZipFile, [string]$TargetFolder)
+        if (!(Test-Path $TargetFolder)) {
+                mkdir $TargetFolder
+        }
+        $shellApp = New-Object -ComObject Shell.Application
+        $file = $shellApp.NameSpace($ZipFile).Items()
+        $shellApp.NameSpace($TargetFolder).CopyHere($files)
+}
+
 out-host "==> Start postinstall ..."
 
 $logpath = "C:"
@@ -65,14 +75,15 @@ switch($stage) {
 			$Nic.SetDynamicDNSRegistration($false,$false)
 		}
 
-		# installing chocolatey package manager
-		out-host "`n==> installing chocolatey package manager"
-		iex ((new-object net.webclient).DownloadString('https://chocolatey.org/install.ps1'))
-		if ($?) {
-			$env:Path+=";%ALLUSERSPROFILE%\chocolatey\bin"
-		}
 		# installing openssh
-		choco install openssh -params '"/SSHServerFeature"' -y
+		(new-object net.webclient).DownloadFile('ftp://fs-qe.usersys.redhat.com/pub/OpenSSH-Win64.zip','C:\OpenSSH.zip')
+		Unzip-File -ZipFile 'C:\OpenSSH.zip' -TargetFolder 'C:\Program Files'
+		powershell -ExecutionPolicy Bypass -File 'C:\Program Files\OpenSSH-Win64\install-sshd.ps1'
+		New-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
+		$env:Path+=";C:\Program Files\OpenSSH-Win64"
+		net start sshd
+		Set-Service sshd -StartupType Automatic
+		Set-Service ssh-agent -StartupType Automatic
 
 		# Setup AD as Domain Controller
 		out-host "`n==> Setup AD as Domain Controller"
