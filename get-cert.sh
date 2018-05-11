@@ -24,7 +24,7 @@ get_cert() {
 	until data=$(ldapsearch -xLLL -H $ldapurl -D "$admin_dn" -w "$passwd" -s base -b "$ca_cert_dn" "objectclass=*" cACertificate) || ((i++>5)); do sleep 3; done
 	{
 		echo "-----BEGIN CERTIFICATE-----"
-		echo "$data" | xargs | sed -r -e 's/.*cACertificate:: //' -e 's/ //g;' -e 's/(.{64})/\1\n/g;'
+		echo "$data" | xargs | sed -r -e 's/.*cACertificate:: //' -e 's/ //g;' -e 's/(.{64})/\1\n/g;' -e 's/\n$//'
 		echo "-----END CERTIFICATE-----"
 	} >$tmp_cacert
 	cat $tmp_cacert
