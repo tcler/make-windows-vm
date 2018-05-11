@@ -5,7 +5,7 @@ PROG=${0##*/}
 
 is_bridge() {
 	local ifname=$1
-	[[ -z "$ifname" || -n "$(brctl show $iface 2>&1 >/dev/null)" ]] && return 1
+	[[ -z "$ifname" || -n "$(brctl show $ifname 2>&1 >/dev/null)" ]] && return 1
 	return 0
 }
 
