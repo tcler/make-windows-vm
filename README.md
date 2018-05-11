@@ -5,6 +5,8 @@
  
  Actually this project is a reconstruction of https://github.com/richm/auto-win-vm-ad and aims to provide a more clear user interface.
 
+ Ref: https://docs.microsoft.com/en-us/windows-hardware/manufacture/desktop/automate-windows-setup
+
 ## dependencies install
 ```
 sudo yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
