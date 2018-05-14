@@ -93,7 +93,8 @@ Usage: $PEOG [OPTION]...
   --domain <domain>
 		#*Specify windows domain name.
   -u <user>     #Specify user for install and config, default: Administrator
-  -p <password> #*Specify user's password for windows.
+  -p <password> #*Specify user's password for windows. for configure AD/DC:
+		  must use a mix of uppercase letters, lowercase letters, numbers, and symbols
 
   --ad-forest-level <Default|Win2008|Win2008R2|Win2012|Win2012R2|WinThreshold>
 		#Specify active directory forest level.
@@ -181,8 +182,7 @@ done
 AD_FOREST_LEVEL=${AD_FOREST_LEVEL:-Default}
 AD_DOMAIN_LEVEL=${AD_DOMAIN_LEVEL:-$AD_FOREST_LEVEL}
 
-[[ -z "$WIN_ISO" || -z "$ADMINPASSWORD" ||
-   -z "$VM_NAME" || -z "$VM_OS_VARIANT" ]] && {
+[[ -z "$WIN_ISO" || -z "$VM_OS_VARIANT" || -z "$VM_NAME" ]] && {
 	Usage
 	exit 1
 }
@@ -206,9 +206,9 @@ VIRTHOST=$(hostname -f)
 # Windows Preparation
 # =======================================================================
 GUEST_HOSTNAME=${GUEST_HOSTNAME:-$VM_NAME}
-DOMAIN=${DOMAIN:-mytest.com}
+DOMAIN=${DOMAIN:-win.com}
 ADMINNAME=${ADMINNAME:-Administrator}
-ADMINPASSWORD=${ADMINPASSWORD:-password}
+ADMINPASSWORD=${ADMINPASSWORD:-Sesame,0pen}
 
 # Setup Active Directory
 FQDN=$GUEST_HOSTNAME.$DOMAIN
