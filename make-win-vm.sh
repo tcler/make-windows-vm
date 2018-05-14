@@ -200,6 +200,7 @@ POST_INSTALL_LOGP=C:
 POST_INSTALL_LOGF=postinstall.log
 VM_IMG_DIR=/var/lib/libvirt/images
 VM_TIMEOUT=${VM_TIMEOUT:-60}
+VIRTHOST=$(hostname -f)
 
 # =======================================================================
 # Windows Preparation
@@ -255,7 +256,6 @@ process_ansf() {
 	local destdir=$1; shift
 	for f; do fname=${f##*/}; cp ${f} $destdir/${fname%.in}; done
 
-	local VIRTHOST=$(hostname -f)
 	sed -i -e "s/@ADMINPASSWORD@/$ADMINPASSWORD/g" \
 		-e "s/@ADMINNAME@/$ADMINNAME/g" \
 		-e "s/@AD_DOMAIN@/$DOMAIN/g" \
@@ -357,6 +357,7 @@ cat <<-EOF | tee $VM_INFO_FILE
 	DOMAIN=$DOMAIN
 	FQDN=$FQDN
 	NETBIOS_NAME=$NETBIOS_NAME
+	VNC_URL=$VIRTHOST:$VNC_PORT
 EOF
 
 # Test AD connection and get AD CA cert
