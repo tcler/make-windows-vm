@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # test AD connection and get AD CA cert
-get_cert() {
+test_cert() {
 	local vmname=$1
 	local fqdn=$2
 	local domain=$3
@@ -41,4 +41,4 @@ get_cert() {
 	\cp -p $tmp_cacert $win_ca_cert_file
 	\rm -f $tmp_cacert
 }
-get_cert "$@"
+test_cert "$@"

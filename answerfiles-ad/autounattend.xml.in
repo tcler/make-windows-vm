@@ -55,7 +55,7 @@ Sample answer file for headless deployment
                 </Password>
                 <Enabled>true</Enabled>
                 <LogonCount>999</LogonCount>
-                <Username>@ADMINNAME@</Username>
+                <Username>@ADMINUSER@</Username>
             </AutoLogon>
             <TimeZone>UTC</TimeZone>
             <ComputerName>@VM_NAME@</ComputerName>

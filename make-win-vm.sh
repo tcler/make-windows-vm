@@ -161,7 +161,7 @@ while true; do
 	--product-key) PRODUCT_KEY="$2"; shift 2;;
 	--hostname) GUEST_HOSTNAME="$2"; shift 2;;
 	--domain) DOMAIN="$2"; shift 2;;
-	-u) ADMINNAME="$2"; shift 2;;
+	-u) ADMINUSER="$2"; shift 2;;
 	-p) ADMINPASSWORD="$2"; shift 2;;
 	--ad-forest-level) AD_FOREST_LEVEL="$2"; shift 2;;
 	--ad-domain-level) AD_DOMAIN_LEVEL="$2"; shift 2;;
@@ -207,7 +207,7 @@ VIRTHOST=$(hostname -f)
 # =======================================================================
 GUEST_HOSTNAME=${GUEST_HOSTNAME:-$VM_NAME}
 DOMAIN=${DOMAIN:-win.com}
-ADMINNAME=${ADMINNAME:-Administrator}
+ADMINUSER=${ADMINUSER:-Administrator}
 ADMINPASSWORD=${ADMINPASSWORD:-Sesame,0pen}
 
 # Setup Active Directory
@@ -257,7 +257,7 @@ process_ansf() {
 	for f; do fname=${f##*/}; cp ${f} $destdir/${fname%.in}; done
 
 	sed -i -e "s/@ADMINPASSWORD@/$ADMINPASSWORD/g" \
-		-e "s/@ADMINNAME@/$ADMINNAME/g" \
+		-e "s/@ADMINUSER@/$ADMINUSER/g" \
 		-e "s/@AD_DOMAIN@/$DOMAIN/g" \
 		-e "s/@NETBIOS_NAME@/$NETBIOS_NAME/g" \
 		-e "s/@VM_NAME@/$VM_NAME/g" \
@@ -352,7 +352,7 @@ cat <<-EOF | tee $VM_INFO_FILE
 	VM_NAME=$VM_NAME
 	VM_INT_IP=$VM_INT_IP
 	VM_EXT_IP=$VM_EXT_IP
-	ADMINNAME=$ADMINNAME
+	ADMINUSER=$ADMINUSER
 	ADMINPASSWORD=$ADMINPASSWORD
 	DOMAIN=$DOMAIN
 	FQDN=$FQDN
@@ -361,7 +361,12 @@ cat <<-EOF | tee $VM_INFO_FILE
 EOF
 
 # Test AD connection and get AD CA cert
-echo -e "\n{INFO} Please run follow command to test AD connection"
+echo -e "\n{INFO} run follow command to test AD connection"
 ldapurl=ldap://${VM_INT_IP}
-echo "./get-cert.sh $VM_NAME $FQDN $DOMAIN $ADMINNAME:$ADMINPASSWORD $ldapurl"
-echo "./get-cert.sh $VM_NAME $FQDN $DOMAIN $ADMINNAME:$ADMINPASSWORD $ldapurl"|bash
+echo "./test-cert.sh $VM_NAME $FQDN $DOMAIN $ADMINUSER:$ADMINPASSWORD $ldapurl"
+echo "./test-cert.sh $VM_NAME $FQDN $DOMAIN $ADMINUSER:$ADMINPASSWORD $ldapurl"|bash
+
+# Test SSH connection
+echo -e "\n{INFO} run follow command to test SSH connection"
+echo "VM_INT_IP=$VM_INT_IP NETBIOS_NAME=$NETBIOS_NAME ADMINUSER=$ADMINUSER ADMINPASSWORD=$ADMINPASSWORD ./test-ssh.sh"
+echo "VM_INT_IP=$VM_INT_IP NETBIOS_NAME=$NETBIOS_NAME ADMINUSER=$ADMINUSER ADMINPASSWORD=$ADMINPASSWORD ./test-ssh.sh"|bash
