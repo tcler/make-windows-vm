@@ -87,6 +87,7 @@ Usage: $PEOG [OPTION]...
 
   --image </path/to/image>
 		#*Specify the path to windows image.
+  --wim-index <wim image index>
   --product-key #Prodcut key for windows activation.
   --hostname <hostname>
 		#hostname of windows
@@ -138,6 +139,7 @@ EOF
 ARGS=$(getopt -o hu:p:t:b \
 	--long help \
 	--long image: \
+	--long wim-index: \
 	--long product-key: \
 	--long hostname: \
 	--long domain: \
@@ -158,6 +160,7 @@ while true; do
 	case "$1" in
 	-h|--help) Usage; exit 1;; 
 	--image) WIN_ISO="$2"; shift 2;;
+	--wim-index) WIM_IMAGE_INDEX="$2"; shift 2;;
 	--product-key) PRODUCT_KEY="$2"; shift 2;;
 	--hostname) GUEST_HOSTNAME="$2"; shift 2;;
 	--domain) DOMAIN="$2"; shift 2;;
@@ -205,6 +208,7 @@ VIRTHOST=$(hostname -f)
 # =======================================================================
 # Windows Preparation
 # =======================================================================
+WIM_IMAGE_INDEX=${WIM_IMAGE_INDEX:-4}
 GUEST_HOSTNAME=${GUEST_HOSTNAME:-$VM_NAME}
 DOMAIN=${DOMAIN:-win.com}
 ADMINUSER=${ADMINUSER:-Administrator}
@@ -263,6 +267,7 @@ process_ansf() {
 		-e "s/@VM_NAME@/$VM_NAME/g" \
 		-e "s/@FQDN@/$FQDN/g" \
 		-e "s/@PRODUCT_KEY@/$PRODUCT_KEY/g" \
+		-e "s/@WIM_IMAGE_INDEX@/$WIM_IMAGE_INDEX/g" \
 		-e "s/@ANSF_DRIVE_LETTER@/$ANSF_DRIVE_LETTER/g" \
 		-e "s/@INSTALL_COMPLETE_FILE@/$INSTALL_COMPLETE_FILE/g" \
 		-e "s/@AD_FOREST_LEVEL@/$AD_FOREST_LEVEL/g" \

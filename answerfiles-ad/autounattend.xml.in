@@ -95,7 +95,7 @@ Sample answer file for headless deployment
                             <Value>@WIM_IMAGE_NAME@</Value>
 -->
                             <Key>/IMAGE/INDEX</Key>
-                            <Value>4</Value>
+                            <Value>@WIM_IMAGE_INDEX@</Value>
                         </MetaData>
                     </InstallFrom>
                 </OSImage>
