@@ -320,6 +320,9 @@ virt-install --connect=qemu:///system --hvm --clock offset=utc \
 	--vnc --vnclisten 0.0.0.0 --vncport ${VNC_PORT:-7788} || { echo error $? from virt-install ; exit 1 ; }
 \rm $SERIAL_PATH
 
+# workaround for https://bugzilla.redhat.com/1043249
+export LIBGUESTFS_BACKEND=direct
+
 # To check whether the installation is done
 echo -e "\n{INFO} waiting install done ..."
 fsdev=/dev/sdb1
