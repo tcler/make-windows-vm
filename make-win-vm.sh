@@ -198,9 +198,11 @@ AD_DOMAIN_LEVEL=${AD_DOMAIN_LEVEL:-$AD_FOREST_LEVEL}
 
 osvariants=$(virt-install --os-variant list 2>/dev/null) ||
 	osvariants=$(osinfo-query os 2>/dev/null)
-grep -q -w "$VM_OS_VARIANT" <<<"$osvariants" || {
-	echo -e "Unknown OS variant '$VM_OS_VARIANT'; accepted os variants:\n$osvariants"|less
-	exit 1
+[[ -n "$osvariants" ]] && {
+	grep -q -w "$VM_OS_VARIANT" <<<"$osvariants" || {
+		echo -e "Unknown OS variant '$VM_OS_VARIANT'; accepted os variants:\n$osvariants"|less
+		exit 1
+	}
 }
 
 # =======================================================================
