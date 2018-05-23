@@ -127,7 +127,8 @@ Usage: $PEOG [OPTION]...
   --cpus        #Numbers of cpu cores for VM.
   --disk-size   #VM disk size, in .qcow2 format.
   --os-variant  <win2k12|win2k12r2|win2k16|win10|win7|...>
-                #*Use the command "osinfo-query os" to get the list of the accepted OS variants
+		#*Use command 'virt-install --os-variant list' to get accepted OS variants
+                #*or Use command "osinfo-query os" *after RHEL-6 (yum install libosinfo)
   -t --ans-file-media-type <cdrom|floppy>
 		#Specify the answerfiles media type loaded to KVM.
   -b, --bridge  #Use traditional bridge interface br0. Not recommended.
@@ -189,9 +190,17 @@ AD_DOMAIN_LEVEL=${AD_DOMAIN_LEVEL:-$AD_FOREST_LEVEL}
 	Usage
 	exit 1
 }
+
 [[ -z "$PRODUCT_KEY" ]] && {
 	echo -e "{WARN} *** There is no Product Key specified, We assume that you are using evaluation version."
 	echo -e "{WARN} *** Otherwise please use the '--product-key <key>' to ensure successful installation."
+}
+
+osvariants=$(virt-install --os-variant list 2>/dev/null) ||
+	osvariants=$(osinfo-query os 2>/dev/null)
+grep -q -w "$VM_OS_VARIANT" <<<"$osvariants" || {
+	echo -e "Unknown OS variant '$VM_OS_VARIANT'; accepted os variants:\n$osvariants"|less
+	exit 1
 }
 
 # =======================================================================
@@ -221,8 +230,8 @@ NETBIOS_NAME=$(echo ${DOMAIN//./} | tr '[a-z]' '[A-Z]')
 # =======================================================================
 # KVM Preparation
 # =======================================================================
-systemctl restart libvirtd.service
-systemctl restart virtlogd.service
+service libvirtd restart
+service virtlogd restart
 
 # VM network parameters
 MacvTap=${MacvTap:-vepa}
@@ -281,6 +290,8 @@ process_ansf() {
 }
 
 echo -e "\n{INFO} make answer file media ..."
+rpm -q libguestfs-winsupport || ANSF_MEDIA_TYPE=floppy  #workaround for system without libguestfs-winsupport
+virt-cat --help|grep -q .--mount || ANSF_MEDIA_TYPE=floppy  #workaround for old libguestfs-tools-c(on RHEL-6)
 \rm -f $ANSF_FLOPPY $ANSF_CDROM  #remove old/exist media file
 media_mp=$(mktemp -d)
 case "$ANSF_MEDIA_TYPE" in
@@ -305,8 +316,8 @@ esac
 # Execute virt-install command with the parameters given
 echo -e "\n{INFO} virt-install ..."
 \rm -f $VM_IMAGE
-virt-install --connect=qemu:///system --hvm --clock offset=utc \
-	--accelerate --cpu host,-invtsc \
+#virt-install --connect=qemu:///system --hvm --accelerate --cpu host,-invtsc \
+virt-install --connect=qemu:///system --hvm --accelerate --cpu host \
 	--name "$VM_NAME" --ram=${VM_RAM:-2048} --vcpu=${VM_CPUS:-2} \
 	--os-variant ${VM_OS_VARIANT} \
 	--disk path=$WIN_ISO,device=cdrom \
@@ -321,21 +332,35 @@ virt-install --connect=qemu:///system --hvm --clock offset=utc \
 export LIBGUESTFS_BACKEND=direct
 
 # To check whether the installation is done
+virtcat() {
+	local vm=$1 dev=$2 file=$3 ret=0
+	if virt-cat --help|grep -q .--mount; then
+		virt-cat -d $vm -m $dev $file
+		ret=$?
+	else
+		local tmp_mp=$(mktemp -d)
+		mount -oro,loop $ANSF_FLOPPY $tmp_mp
+		cat $tmp_mp/$file
+		ret=$?
+		umount $tmp_mp
+	fi
+	return $ret
+}
 echo -e "\n{INFO} waiting install done ..."
 fsdev=/dev/sdb1
 [[ "$ANSF_MEDIA_TYPE" = floppy ]] && fsdev=/dev/sdc
 for ((i=0; i<=VM_TIMEOUT; i++)) ; do
-	virt-cat -d $VM_NAME -m $fsdev /$INSTALL_COMPLETE_FILE &>/dev/null && break
+	virtcat $VM_NAME $fsdev /$INSTALL_COMPLETE_FILE &>/dev/null && break
 	sleep 1m
 done
 ((i > $VM_TIMEOUT)) && { echo -e "\n{WARN} Install timeout($VM_TIMEOUT)"; }
 
 # Get install and ipconfig log
 WIN_INSTALL_LOG=/tmp/$VM_NAME.install.log
-virt-cat -d $VM_NAME -m $fsdev /$POST_INSTALL_LOGF |
+virtcat $VM_NAME $fsdev /$POST_INSTALL_LOGF |
 	iconv -f UTF-16LE -t UTF-8 - >$WIN_INSTALL_LOG
 WIN_IPCONFIG_LOG=/tmp/$VM_NAME.ipconfig.txt
-virt-cat -d $VM_NAME -m $fsdev /$IPCONFIG_LOGF >$WIN_IPCONFIG_LOG
+virtcat $VM_NAME $fsdev /$IPCONFIG_LOGF >$WIN_IPCONFIG_LOG
 dos2unix $WIN_INSTALL_LOG $WIN_IPCONFIG_LOG
 
 # Eject CDs
