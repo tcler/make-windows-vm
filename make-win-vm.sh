@@ -221,9 +221,6 @@ NETBIOS_NAME=$(echo ${DOMAIN//./} | tr '[a-z]' '[A-Z]')
 # =======================================================================
 # KVM Preparation
 # =======================================================================
-# Enable libvirtd remote access
-sed -i -e "/#libvirtd_args/s/^#//" /etc/sysconfig/libvirtd
-sed -i -e "/#listen_tls/s/^#//" /etc/libvirt/libvirtd.conf
 systemctl restart libvirtd.service
 systemctl restart virtlogd.service
 
