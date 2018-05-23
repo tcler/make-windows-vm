@@ -344,7 +344,7 @@ virtcat() {
 		mount -oro,loop $ANSF_FLOPPY $tmp_mp
 		cat $tmp_mp/$file
 		ret=$?
-		umount $tmp_mp
+		umount $tmp_mp; \rm -rf $tmp_mp
 	fi
 	return $ret
 }
