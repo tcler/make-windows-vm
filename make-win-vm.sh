@@ -155,6 +155,7 @@ ARGS=$(getopt -o hu:p:t:b \
 	--long bridge \
 	--long timeout: \
 	--long vncport: \
+	--long check-ad \
 	-n "$PROG" -- "$@")
 eval set -- "$ARGS"
 while true; do
@@ -178,6 +179,7 @@ while true; do
 	-b|--bridge) MacvTap=bridge; shift 1;; 
 	--timeout) VM_TIMEOUT="$2"; shift 2;;
 	--vncport) VNC_PORT="$2"; shift 2;;
+	--check-ad) CHECK_AD="yes"; shift 1;;
 	--) shift; break;;
 	*) Usage; exit 1;; 
 	esac
@@ -392,13 +394,14 @@ cat <<-EOF | tee $VM_INFO_FILE
 	VNC_URL=$VIRTHOST:$VNC_PORT
 EOF
 
-# Test AD connection and get AD CA cert
-echo -e "\n{INFO} run follow command to test AD connection"
-ldapurl=ldap://${VM_INT_IP}
-echo "./test-cert.sh $VM_NAME $FQDN $DOMAIN $ADMINUSER:$ADMINPASSWORD $ldapurl"
-echo "./test-cert.sh $VM_NAME $FQDN $DOMAIN $ADMINUSER:$ADMINPASSWORD $ldapurl"|bash
-
 # Test SSH connection
 echo -e "\n{INFO} run follow command to test SSH connection"
 echo "VM_INT_IP=$VM_INT_IP NETBIOS_NAME=$NETBIOS_NAME ADMINUSER=$ADMINUSER ADMINPASSWORD=$ADMINPASSWORD ./test-ssh.sh"
 echo "VM_INT_IP=$VM_INT_IP NETBIOS_NAME=$NETBIOS_NAME ADMINUSER=$ADMINUSER ADMINPASSWORD=$ADMINPASSWORD ./test-ssh.sh"|bash
+
+if [[ "$CHECK_AD" = yes ]]; then
+	echo -e "\n{INFO} run follow command to test AD connection"
+	ldapurl=ldap://${VM_INT_IP}
+	echo "./test-cert.sh $VM_NAME $FQDN $DOMAIN $ADMINUSER:$ADMINPASSWORD $ldapurl"
+	echo "./test-cert.sh $VM_NAME $FQDN $DOMAIN $ADMINUSER:$ADMINPASSWORD $ldapurl"|bash
+fi
