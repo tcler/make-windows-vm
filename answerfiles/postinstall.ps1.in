@@ -91,5 +91,9 @@ switch($Stage) {
 		# installing openssh
 		Out-Host "`n==> install and start ssh server"
 		Install-Sshd -Url $UrlOpenSSH
+
+		# complete
+		Out-Host "`n==> install complete!!!"
+		echo "install complete" | out-file -encoding utf8 $LogPath\@INSTALL_COMPLETE_FILE@
 	}
 }
