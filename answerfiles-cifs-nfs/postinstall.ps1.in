@@ -1,0 +1,102 @@
+
+Function Out-Host {
+	$str = $args[0]
+	Write-Host "$str"
+	echo "$str"
+}
+
+Function Unzip-File() {
+	param([string]$ZipFile, [string]$TargetFolder)
+	if (!(Test-Path $TargetFolder)) {
+		mkdir $TargetFolder
+	}
+	$shellApp = New-Object -ComObject Shell.Application
+	$files = $shellApp.NameSpace($ZipFile).Items()
+	$shellApp.NameSpace($TargetFolder).CopyHere($files)
+}
+
+Function Install-Sshd() {
+	param([string]$Url)
+	(new-object net.webclient).DownloadFile($Url, 'C:\OpenSSH.zip')
+	Unzip-File -ZipFile 'C:\OpenSSH.zip' -TargetFolder 'C:\Program Files'
+	powershell -ExecutionPolicy Bypass -File 'C:\Program Files\OpenSSH-Win64\install-sshd.ps1'
+	New-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
+	$env:Path+=";C:\Program Files\OpenSSH-Win64"
+	net start sshd
+	Set-Service sshd -StartupType Automatic
+	Set-Service ssh-agent -StartupType Automatic
+}
+
+Out-Host "==> Start postinstall ..."
+
+$LogPath = "C:"
+if (Test-Path -Path A:) {
+	$LogPath = "A:"
+}
+$PostProg = "@ANSF_DRIVE_LETTER@\postinstall.ps1"
+$RunOnceKey = "HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce"
+$UrlOpenSSH = "ftp://fs-qe.usersys.redhat.com/pub/OpenSSH-Win64.zip"
+
+$Stage = $args[0]
+if (!$Stage) { $Stage = "base" }
+
+Out-Host "==> Start postinstall $Stage ..."
+
+switch($Stage) {
+	"base" {
+		# activate windows with the product key
+		# no need to activate: ??? 
+
+		# turning off firewall
+		Out-Host "`n==> turning off firewall"
+		Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+
+		# enabling remote desktop
+		Out-Host "`n==> enabling remote desktop"
+		Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+		#Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+		#Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 0
+
+		# saving network connection details
+		Out-Host "`n==> save ipconfig info"
+		ipconfig | out-file -encoding utf8 $LogPath\@IPCONFIG_LOGF@
+
+		# disabling IE ESC (Internet Explorer Enhanced Security Configuration)
+		Out-Host "`n==> disabling IE ESC (Internet Explorer Enhanced Security Configuration)"
+		$AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
+		$UserKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"
+		Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0
+		Set-ItemProperty -Path $UserKey -Name "IsInstalled" -Value 0
+		Stop-Process -Name Explorer
+		Out-Host "`n==> IE Enhanced Security Configuration (ESC) has been disabled."
+
+		# disabling shutdown event tracker/shutdown dialog
+		Out-Host "`n==> disabling shutdown event tracker/dialog"
+		reg add "HKLM\SOFTWARE\Policies\Control\Microsoft\Windows NT\Reliability" /v ShutDownReasonOn /t REG_DWORD /d 0 /f
+		reg add "HKLM\SOFTWARE\Policies\Control\Microsoft\Windows NT\Reliability" /v ShutDownReasonUI /t REG_DWORD /d 0 /f
+
+		# adding hostname for the virtual host
+		Out-Host "`n==> add host's hostname to $Env:WinDir\system32\drivers\etc\hosts"
+		echo "" >> $Env:WinDir\system32\drivers\etc\hosts
+		echo "192.168.122.1 @VIRTHOST@" >> $Env:WinDir\system32\drivers\etc\hosts
+
+		# disabling DNS registration on the network interface
+		$MacDisable = "@MAC_DISABLE@"
+		if ($MacDisable) {
+			Out-Host "`n==> disabling DNS registration on the network interface"
+			$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='$MacDisable'")
+			$Nic.SetDynamicDNSRegistration($false,$false)
+		}
+
+		# installing openssh
+		Out-Host "`n==> install and start ssh server"
+		Install-Sshd -Url $UrlOpenSSH
+
+		# config CIFS and NFS server
+		# implement me
+
+		# complete
+		Out-Host "`n==> install complete!!!"
+		echo "install complete" | out-file -encoding utf8 $LogPath\@INSTALL_COMPLETE_FILE@
+	}
+}
