@@ -1,4 +1,10 @@
 
+param (
+	[switch]$cifs = $true
+	[switch]$nfs = $true
+	[switch]$AD = $false
+)
+
 Function Out-Host {
 	$str = $args[0]
 	Write-Host "$str"
