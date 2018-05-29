@@ -286,6 +286,7 @@ process_ansf() {
 		-e "s/@DNS_IF_MAC@/$VM_EXT_MAC/g" \
 		-e "s/@VIRTHOST@/$VIRTHOST/g" \
 		-e "s/@IPCONFIG_LOGF@/$IPCONFIG_LOGF/g" \
+		-e "s/@GUEST_HOSTNAME@/$GUEST_HOSTNAME/g" \
 		-e "s/@POST_INSTALL_LOG@/$POST_INSTALL_LOGP\\\\$POST_INSTALL_LOGF/g" \
 		$destdir/*
 	unix2dos $destdir/* >/dev/null

@@ -1,7 +1,7 @@
 
 param (
-	[switch]$cifs = $true
-	[switch]$nfs = $true
+	[switch]$cifs = $true,
+	[switch]$nfs = $true,
 	[switch]$AD = $false
 )
 
@@ -98,8 +98,73 @@ switch($Stage) {
 		Out-Host "`n==> install and start ssh server"
 		Install-Sshd -Url $UrlOpenSSH
 
+		if ($AD) {
+			# Setup AD as Domain Controller
+			Out-Host "`n==> Setup AD as Domain Controller"
+			Install-windowsfeature -name AD-Domain-Services -IncludeManagementTools
+			$SafePasswd=(convertto-securestring "@ADMINPASSWORD@" -asplaintext -force)
+			Install-ADDSForest -DomainName @AD_DOMAIN@ -SafeModeAdministratorPassword $SafePasswd -CreateDNSDelegation:$false -NoDNSOnNetwork:$true -DomainMode @AD_DOMAIN_LEVEL@ -DomainNetBIOSName @NETBIOS_NAME@ -ForestMode @AD_FOREST_LEVEL@ -InstallDNS:$true -NoRebootOnCompletion:$true -Force
+
+			# Reboot to complete Active Directory setup
+			Out-Host "`n==> Reboot to complete Active Directory setup"
+			Set-ItemProperty $RunOnceKey "NextRun" "powershell $PostProg afterADSetup >> @POST_INSTALL_LOG@ 2>&1"
+			shutdown -r -f -t 10 -c "Shutting down in 1 minute: Reboot to complete Active Directory setup"
+		}
+
+		Out-Host "`n==> Setup NFS Server"
+		Add-WindowsFeature FS-NFS-Service
+		Import-Module NFS
+		mkdir C:/nfstest
+		New-NfsShare -Name nfstest -Path C:\nfstest -Authentication sys -AllowRootAccess $True -Permission readwrite -EnableAnonymousAccess $True -EnableUnmappedAccess $True
+		nfsadmin server stop
+		nfsadmin server start
+
+		# complete
+		Out-Host "`n==> install complete!!!"
+		echo "install complete" | out-file -encoding utf8 $LogPath\@INSTALL_COMPLETE_FILE@
+
+	}
+
+	"afterADSetup" {
+		# do this just after AD has been set up
+		Out-Host "`n==> reset dns ip"
+		$DNS_IPS=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@DNS_IF_MAC@'").IPaddress
+		dnscmd . /ResetListenAddresses $DNS_IPS
+
+		# Install Standalone Root CA
+		Out-Host "`n==> Install Standalone Root CA"
+		Import-Module ServerManager
+		Add-WindowsFeature Adcs-Cert-Authority -IncludeManagementTools
+		Install-AdcsCertificationAuthority -force -CAType EnterpriseRootCa
+
+		# Reboot to complete Root CA Services setup
+		Out-Host "`n==> Reboot to complete Root CA setup"
+		Set-ItemProperty $RunOnceKey "NextRun" "powershell $PostProg afterRootCASetup >> @POST_INSTALL_LOG@ 2>&1"
+		shutdown -r -f -t 10 -c "Shutting down in 1 minute: Reboot to complete Root CA setup"
+	}
+
+	"afterRootCASetup" {
+		# Time synchronization
+		Out-Host "`n==> sync time"
+		w32tm /config /manualpeerlist:clock.redhat.com /syncfromflags:manual /reliable:yes /update
+		net stop w32time
+		net start w32time
+		w32tm /resync
+
+		# Add KDC
+		Out-Host "`n==> Add KDC"
+		ksetup.exe /AddKDC @NETBIOS_NAME@ @FQDN@
+
 		# config CIFS and NFS server
-		# implement me
+		Out-Host "`n==> Setup NFS Server"
+		Add-WindowsFeature FS-NFS-Service
+		Import-Module NFS
+		mkdir C:/nfstest
+		New-NfsShare -Name nfstest -Path C:\nfstest -Authentication All -AllowRootAccess $True -Permission readwrite
+		setspn -A nfs/@GUEST_HOSTNAME@ @GUEST_HOSTNAME@
+		setspn -A nfs/@FQDN@ @GUEST_HOSTNAME@
+		nfsadmin server stop
+		nfsadmin server start
 
 		# complete
 		Out-Host "`n==> install complete!!!"
