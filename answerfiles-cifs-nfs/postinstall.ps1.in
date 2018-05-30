@@ -124,6 +124,8 @@ switch($Stage) {
 		nfsadmin server start
 
 		# complete
+		taskkill /F /IM explorer.exe
+		explorer
 		Out-Host "`n==> install complete!!!"
 		echo "install complete" | out-file -encoding utf8 $LogPath\@INSTALL_COMPLETE_FILE@
 
@@ -171,6 +173,8 @@ switch($Stage) {
 		nfsadmin server start
 
 		# complete
+		taskkill /F /IM explorer.exe
+		explorer
 		Out-Host "`n==> install complete!!!"
 		echo "install complete" | out-file -encoding utf8 $LogPath\@INSTALL_COMPLETE_FILE@
 	}
