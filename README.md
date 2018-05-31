@@ -18,12 +18,17 @@ sudo yum install libvirt libvirt-client virt-install virt-viewer qemu-kvm geniso
 ```
 vmname=win2012r2-yjh
 virsh undefine $vmname; virsh destroy $vmname
-./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2-Evaluation.iso \
-    --os-variant win2k12r2 --vm-name $vmname --domain ad.test -p ~Ocgxyz \
-    --cpus 2 --ram 2048 --disk-size 20 -b --vncport 7799  ./answerfiles-ad/*
 ./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2.iso --product-key W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9 \
     --os-variant win2k12r2 --vm-name $vmname --domain ad.test -p ~Ocgxyz \
-    --cpus 2 --ram 2048 --disk-size 20 -b --vncport 7780 --ad-forest-level Win2012R2  answerfiles-ad/*
+    --cpus 2 --ram 2048 --disk-size 20 -b --vncport 7777 --ad-forest-level Win2012R2  ./answerfiles-ad/*
+
+./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2-Evaluation.iso \
+    --os-variant win2k12r2 --vm-name $vmname --domain ad.test -p ~Ocgxyz \
+    --cpus 2 --ram 2048 --disk-size 20 -b --vncport 7788 ./answerfiles-ad/*
+
+./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2-Evaluation.iso \
+    --os-variant win2k12r2 --vm-name $vmname --domain nfs.test -p ~Ocgxyz \
+    --cpus 2 --ram 2048 --disk-size 60 --vncport 7799  ./answerfiles-cifs-nfs/* --enable-kdc
 
 # tips 1:
 # libguestfs can't mount ntfs after RHEL-7.2, because libguestfs-winsupport was disabled for some reason.

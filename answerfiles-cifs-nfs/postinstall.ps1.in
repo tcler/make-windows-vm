@@ -2,7 +2,7 @@
 param (
 	[switch]$cifs = $true,
 	[switch]$nfs = $true,
-	[switch]$AD = $false
+	[switch]$kdc = $false
 )
 
 Function Out-Host {
@@ -100,7 +100,7 @@ switch($Stage) {
 		Out-Host "`n==> install and start ssh server"
 		Install-Sshd -Url $UrlOpenSSH
 
-		if ($AD) {
+		if ($kdc) {
 			# Setup AD as Domain Controller
 			Out-Host "`n==> Setup AD as Domain Controller"
 			Install-windowsfeature -name AD-Domain-Services -IncludeManagementTools

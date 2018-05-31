@@ -1,4 +1,9 @@
 
+#just for avoid getting unlikely -kdc option from $args[0]
+param (
+	[switch]$kdc = $ture
+)
+
 Function Out-Host {
 	$str = $args[0]
 	Write-Host "$str"

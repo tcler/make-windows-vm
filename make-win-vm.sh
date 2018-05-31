@@ -123,17 +123,21 @@ Usage: $PEOG [OPTION]...
 
   --vm-name <VM_NAME>
 		#*Specify the vm guest's name.
-  --ram         #VM's ram size
-  --cpus        #Numbers of cpu cores for VM.
-  --disk-size   #VM disk size, in .qcow2 format.
+  --ram <>      #VM's ram size
+  --cpus <>     #Numbers of cpu cores for VM.
+  --disk-size <>#VM disk size, in .qcow2 format.
   --os-variant  <win2k12|win2k12r2|win2k16|win10|win7|...>
 		#*Use command 'virt-install --os-variant list' to get accepted OS variants
                 #*or Use command "osinfo-query os" *after RHEL-6 (yum install libosinfo)
   -t --ans-file-media-type <cdrom|floppy>
 		#Specify the answerfiles media type loaded to KVM.
   -b, --bridge  #Use traditional bridge interface br0. Not recommended.
-  --timeout     #Set waiting timeout for installation.
+  --timeout <>  #Set waiting timeout for installation.
   --vncport <>  #Set vncport
+  --check-ad    #do ad connection test after install complete
+  --image-dir <>#folder to save vm images
+  --enable-kdc  #enable AD KDC service(in case use answerfiles-cifs-nfs/postinstall.ps1)
+		#- to do nfs/cifs krb5 test
 EOF
 }
 
@@ -156,7 +160,9 @@ ARGS=$(getopt -o hu:p:t:b \
 	--long timeout: \
 	--long vncport: \
 	--long check-ad \
-	-n "$PROG" -- "$@")
+	--long image-dir \
+	--long enable-kdc \
+	-a -n "$PROG" -- "$@")
 eval set -- "$ARGS"
 while true; do
 	case "$1" in
@@ -180,6 +186,8 @@ while true; do
 	--timeout) VM_TIMEOUT="$2"; shift 2;;
 	--vncport) VNC_PORT="$2"; shift 2;;
 	--check-ad) CHECK_AD="yes"; shift 1;;
+	--image-dir) VM_IMG_DIR=$2; shift 2;;
+	--enable-kdc) KDC_OPT="-kdc"; shift 1;;
 	--) shift; break;;
 	*) Usage; exit 1;; 
 	esac
@@ -214,9 +222,12 @@ IPCONFIG_LOGF=ipconfig.log
 INSTALL_COMPLETE_FILE=installcomplete
 POST_INSTALL_LOGP=C:
 POST_INSTALL_LOGF=postinstall.log
-VM_IMG_DIR=/var/lib/libvirt/images
+DEFAULT_VM_IMG_DIR=/var/lib/libvirt/images
+VM_IMG_DIR=${VM_IMG_DIR:-/home/virt-images}
 VM_TIMEOUT=${VM_TIMEOUT:-60}
 VIRTHOST=$(hostname -f)
+mkdir -p $VM_IMG_DIR
+chcon --reference=$DEFAULT_VM_IMG_DIR $VM_IMG_DIR
 
 # =======================================================================
 # Windows Preparation
@@ -288,6 +299,7 @@ process_ansf() {
 		-e "s/@IPCONFIG_LOGF@/$IPCONFIG_LOGF/g" \
 		-e "s/@GUEST_HOSTNAME@/$GUEST_HOSTNAME/g" \
 		-e "s/@POST_INSTALL_LOG@/$POST_INSTALL_LOGP\\\\$POST_INSTALL_LOGF/g" \
+		-e "s/@KDC_OPT@/$KDC_OPT/g" \
 		$destdir/*
 	unix2dos $destdir/* >/dev/null
 	[[ -z "$PRODUCT_KEY" ]] &&
