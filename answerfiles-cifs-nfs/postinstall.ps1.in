@@ -116,12 +116,28 @@ switch($Stage) {
 		Out-Host "`n==> Setup NFS Server"
 		Add-WindowsFeature FS-NFS-Service
 		Import-Module NFS
-		mkdir C:/nfstest
-		New-NfsShare -Name nfstest -Path C:\nfstest -Authentication sys -AllowRootAccess $True -Permission readwrite
-		Set-NfsShare -Name nfstest -EnableAnonymousAccess $True
-		Set-NfsShare -Name nfstest -EnableUnmappedAccess $True
+		$nfsPath = "C:\nfstest"
+		$nfsShareName = "nfstest"
+		mkdir $nfsPath
+		New-NfsShare -Name $nfsShareName -Path $nfsPath -Authentication sys -AllowRootAccess $True -Permission readwrite
+		Set-NfsShare -Name $nfsShareName -EnableAnonymousAccess $True
+		Set-NfsShare -Name $nfsShareName -EnableUnmappedAccess $True
 		nfsadmin server stop
 		nfsadmin server start
+
+		Out-Host "`n==> Setup CIFS Server"
+		Enable-WindowsOptionalFeature -Online -FeatureName smb1protocol
+		Set-SmbServerConfiguration -EnableSMB2Protocol $true -Force
+		Import-Module SmbShare
+		Import-Module SmbWitness
+		$cifsPath = "C:\cifstest"
+		$cifsShareName = "cifstest"
+		mkdir $cifsPath
+		New-SmbShare -Name $cifsShareName -Path $cifsPath -Description "for cifs share test 0_o"
+		Get-SmbShareAccess -Name $cifsShareName
+
+		#for login without passwd from client
+		net user guest /active:yes
 
 		# complete
 		taskkill /F /IM explorer.exe
