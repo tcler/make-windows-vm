@@ -10,7 +10,7 @@ spawn ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -l $ADMINU
 set pprefix [string tolower ${ADMINUSER}@]
 expect {
 	"password:" { send "${PASSWD}\r"; exp_continue }
-	-re "${pprefix}.*>" { send "dir C:\\\r" }
+	-re "${pprefix}.*>" { send "ipconfig & dir C:\\\r" }
 }
 expect -re "${pprefix}.*>" {
 	puts ""
