@@ -1,4 +1,6 @@
 
+# Setup a plain windows server
+
 Function Out-Host {
 	$str = $args[0]
 	Write-Host "$str"
@@ -21,7 +23,9 @@ Function Install-Sshd() {
 	Unzip-File -ZipFile 'C:\OpenSSH.zip' -TargetFolder 'C:\Program Files'
 	powershell -ExecutionPolicy Bypass -File 'C:\Program Files\OpenSSH-Win64\install-sshd.ps1'
 	New-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
-	$env:Path+=";C:\Program Files\OpenSSH-Win64"
+	$oldpath = (Get-ItemProperty -Path 'Registry::HKLM\System\CurrentControlSet\Control\Session Manager\Environment' -Name PATH).path
+	$newpath = "$oldpath;C:\Program Files\OpenSSH-Win64"
+	Set-ItemProperty -Path "Registry::HKLM\System\CurrentControlSet\Control\Session Manager\Environment" -Name PATH -Value $newPath
 	net start sshd
 	Set-Service sshd -StartupType Automatic
 	Set-Service ssh-agent -StartupType Automatic

@@ -26,7 +26,9 @@ Function Install-Sshd() {
 	Unzip-File -ZipFile 'C:\OpenSSH.zip' -TargetFolder 'C:\Program Files'
 	powershell -ExecutionPolicy Bypass -File 'C:\Program Files\OpenSSH-Win64\install-sshd.ps1'
 	New-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
-	$env:Path+=";C:\Program Files\OpenSSH-Win64"
+	$oldpath = (Get-ItemProperty -Path 'Registry::HKLM\System\CurrentControlSet\Control\Session Manager\Environment' -Name PATH).path
+	$newpath = "$oldpath;C:\Program Files\OpenSSH-Win64"
+	Set-ItemProperty -Path "Registry::HKLM\System\CurrentControlSet\Control\Session Manager\Environment" -Name PATH -Value $newPath
 	net start sshd
 	Set-Service sshd -StartupType Automatic
 	Set-Service ssh-agent -StartupType Automatic
@@ -101,7 +103,18 @@ switch($Stage) {
 		Out-Host "`n==> Setup AD as Domain Controller"
 		Install-windowsfeature -name AD-Domain-Services -IncludeManagementTools
 		$SafePasswd=(convertto-securestring "@ADMINPASSWORD@" -asplaintext -force)
-		Install-ADDSForest -DomainName @AD_DOMAIN@ -SafeModeAdministratorPassword $SafePasswd -CreateDNSDelegation:$false -NoDNSOnNetwork:$true -DomainMode @AD_DOMAIN_LEVEL@ -DomainNetBIOSName @NETBIOS_NAME@ -ForestMode @AD_FOREST_LEVEL@ -InstallDNS:$true -NoRebootOnCompletion:$true -Force
+		# Installation
+		Install-ADDSForest `
+		-DomainName @AD_DOMAIN@ `
+		-SafeModeAdministratorPassword $SafePasswd `
+		-CreateDNSDelegation:$false `
+		-NoDNSOnNetwork:$true `
+		-DomainMode @AD_DOMAIN_LEVEL@ `
+		-DomainNetBIOSName @NETBIOS_NAME@ `
+		-ForestMode @AD_FOREST_LEVEL@ `
+		-InstallDNS:$true `
+		-NoRebootOnCompletion:$true `
+		-Force
 
 		# Reboot to complete Active Directory setup
 		Out-Host "`n==> Reboot to complete Active Directory setup"
