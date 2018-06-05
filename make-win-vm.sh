@@ -138,6 +138,10 @@ Usage: $PEOG [OPTION]...
   --image-dir <>#folder to save vm images
   --enable-kdc  #enable AD KDC service(in case use answerfiles-cifs-nfs/postinstall.ps1)
 		#- to do nfs/cifs krb5 test
+  --parent-domain <parent-domain>
+		#Domain name of an existing domain.
+  --parent-ip <parent-ip>
+		#IP address of an existing domain.
 EOF
 }
 
@@ -162,6 +166,8 @@ ARGS=$(getopt -o hu:p:t:b \
 	--long check-ad \
 	--long image-dir \
 	--long enable-kdc \
+	--long parent-domain: \
+	--long parent-ip: \
 	-a -n "$PROG" -- "$@")
 eval set -- "$ARGS"
 while true; do
@@ -188,6 +194,8 @@ while true; do
 	--check-ad) CHECK_AD="yes"; shift 1;;
 	--image-dir) VM_IMG_DIR=$2; shift 2;;
 	--enable-kdc) KDC_OPT="-kdc"; shift 1;;
+	--parent-domain) PARENT_DOMAIN="$2"; shift 2;;
+	--parent-ip) PARENT_IP="$2"; shift 2;;
 	--) shift; break;;
 	*) Usage; exit 1;; 
 	esac
@@ -200,6 +208,13 @@ AD_DOMAIN_LEVEL=${AD_DOMAIN_LEVEL:-$AD_FOREST_LEVEL}
 	Usage
 	exit 1
 }
+if egrep -q "@PARENT_(DOMAIN|IP)@" "$@"; then
+	[[ -z "$PARENT_DOMAIN" || -z "$PARENT_IP" ]] && {
+		echo "Missing parent-domain or parent-ip"
+		Usage
+		exit 1
+	}
+fi
 
 [[ -z "$PRODUCT_KEY" ]] && {
 	echo -e "{WARN} *** There is no Product Key specified, We assume that you are using evaluation version."
@@ -300,6 +315,8 @@ process_ansf() {
 		-e "s/@GUEST_HOSTNAME@/$GUEST_HOSTNAME/g" \
 		-e "s/@POST_INSTALL_LOG@/$POST_INSTALL_LOGP\\\\$POST_INSTALL_LOGF/g" \
 		-e "s/@KDC_OPT@/$KDC_OPT/g" \
+		-e "s/@PARENT_DOMAIN@/$PARENT_DOMAIN/g" \
+		-e "s/@PARENT_IP@/$PARENT_IP/g" \
 		$destdir/*
 	unix2dos $destdir/* >/dev/null
 	[[ -z "$PRODUCT_KEY" ]] &&

@@ -1,0 +1,152 @@
+
+#just for avoid getting unlikely -kdc option from $args[0]
+param (
+	[switch]$kdc = $ture,
+)
+
+Function Out-Host {
+	$str = $args[0]
+	Write-Host "$str"
+	echo "$str"
+}
+
+Function Unzip-File() {
+	param([string]$ZipFile, [string]$TargetFolder)
+	if (!(Test-Path $TargetFolder)) {
+		mkdir $TargetFolder
+	}
+	$shellApp = New-Object -ComObject Shell.Application
+	$files = $shellApp.NameSpace($ZipFile).Items()
+	$shellApp.NameSpace($TargetFolder).CopyHere($files)
+}
+
+Function Install-Sshd() {
+	param([string]$Url)
+	(new-object net.webclient).DownloadFile($Url, 'C:\OpenSSH.zip')
+	Unzip-File -ZipFile 'C:\OpenSSH.zip' -TargetFolder 'C:\Program Files'
+	powershell -ExecutionPolicy Bypass -File 'C:\Program Files\OpenSSH-Win64\install-sshd.ps1'
+	New-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
+	$oldpath = (Get-ItemProperty -Path 'Registry::HKLM\System\CurrentControlSet\Control\Session Manager\Environment' -Name PATH).path
+	$newpath = "$oldpath;C:\Program Files\OpenSSH-Win64"
+	Set-ItemProperty -Path "Registry::HKLM\System\CurrentControlSet\Control\Session Manager\Environment" -Name PATH -Value $newPath
+	net start sshd
+	Set-Service sshd -StartupType Automatic
+	Set-Service ssh-agent -StartupType Automatic
+}
+
+Out-Host "==> Start postinstall ..."
+
+$LogPath = "C:"
+if (Test-Path -Path A:) {
+	$LogPath = "A:"
+}
+$PostProg = "@ANSF_DRIVE_LETTER@\postinstall.ps1"
+$RunOnceKey = "HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce"
+$UrlOpenSSH = "ftp://fs-qe.usersys.redhat.com/pub/OpenSSH-Win64.zip"
+
+$Stage = $args[0]
+if (!$Stage) { $Stage = "base" }
+
+Out-Host "==> Start postinstall $Stage ..."
+
+switch($Stage) {
+	"base" {
+		# activate windows with the product key
+		# no need to activate: ??? 
+
+		# turning off firewall
+		Out-Host "`n==> turning off firewall"
+		Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+
+		# enabling remote desktop
+		Out-Host "`n==> enabling remote desktop"
+		Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+		#Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+		#Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 0
+
+		# saving network connection details
+		Out-Host "`n==> save ipconfig info"
+		ipconfig | out-file -encoding utf8 $LogPath\@IPCONFIG_LOGF@
+
+		# disabling IE ESC (Internet Explorer Enhanced Security Configuration)
+		Out-Host "`n==> disabling IE ESC (Internet Explorer Enhanced Security Configuration)"
+		$AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
+		$UserKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"
+		Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0
+		Set-ItemProperty -Path $UserKey -Name "IsInstalled" -Value 0
+		Stop-Process -Name Explorer
+		Out-Host "`n==> IE Enhanced Security Configuration (ESC) has been disabled."
+
+		# disabling shutdown event tracker/shutdown dialog
+		Out-Host "`n==> disabling shutdown event tracker/dialog"
+		reg add "HKLM\SOFTWARE\Policies\Control\Microsoft\Windows NT\Reliability" /v ShutDownReasonOn /t REG_DWORD /d 0 /f
+		reg add "HKLM\SOFTWARE\Policies\Control\Microsoft\Windows NT\Reliability" /v ShutDownReasonUI /t REG_DWORD /d 0 /f
+
+		# adding hostname for the virtual host
+		Out-Host "`n==> add host's hostname to $Env:WinDir\system32\drivers\etc\hosts"
+		echo "" >> $Env:WinDir\system32\drivers\etc\hosts
+		echo "192.168.122.1 @VIRTHOST@" >> $Env:WinDir\system32\drivers\etc\hosts
+
+		# disabling DNS registration on the network interface
+		$MacDisable = "@MAC_DISABLE@"
+		if ($MacDisable) {
+			Out-Host "`n==> disabling DNS registration on the network interface"
+			$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='$MacDisable'")
+			$Nic.SetDynamicDNSRegistration($false,$false)
+		}
+
+		# installing openssh
+		Out-Host "`n==> install and start ssh server"
+		Install-Sshd -Url $UrlOpenSSH
+
+		# Setup child domain to test multi domain cases
+		Out-Host "`n==> Setup child domain"
+		$SafePasswd=(convertto-securestring "@ADMINPASSWORD@" -asplaintext -force)
+		Install-windowsfeature -name AD-Domain-Services -IncludeManagementTools
+
+		$User="@PARENT_DOMAIN@\Administrator"
+		$Credential=New-Object -TypeName "System.Management.Automation.PSCredential" -ArgumentList $User, $SafePasswd
+		Set-DnsClientServerAddress -InterfaceAlias "Ethernet" -ServerAddresses("@PARENT_IP@")
+		Set-DnsClientServerAddress -InterfaceAlias "Ethernet 2" -ServerAddresses("@PARENT_IP@")
+		# Installation
+		Install-ADDSDomain `
+		-NoGlobalCatalog:$false `
+		-CreateDnsDelegation:$true `
+		-Credential (Get-Credential -Credential $Credential) `
+		-DomainMode @AD_DOMAIN_LEVEL@ `
+		-DomainType "ChildDomain" `
+		-InstallDns:$true `
+		-NewDomainName @AD_DOMAIN@ `
+		-NewDomainNetbiosName @NETBIOS_NAME@ `
+		-ParentDomainName @PARENT_DOMAIN@ `
+		-NoRebootOnCompletion:$true `
+		-Force `
+		-SafeModeAdministratorPassword $SafePasswd
+
+		# Reboot to complete child domain setup
+		Out-Host "`n==> Reboot to complete child domain setup"
+		Set-ItemProperty $RunOnceKey "NextRun" "powershell $PostProg afterADDSDomainSetup >> @POST_INSTALL_LOG@ 2>&1"
+		shutdown -r -f -t 10 -c "Shutting down in 1 minute: Reboot to complete child domain setup"
+		exit
+	}
+
+	"afterADDSDomainSetup" {
+		# Time synchronization
+		Out-Host "`n==> sync time"
+		w32tm /config /manualpeerlist:clock.redhat.com /syncfromflags:manual /reliable:yes /update
+		net stop w32time
+		net start w32time
+		w32tm /resync
+
+		# Add KDC
+		Out-Host "`n==> Add KDC"
+		ksetup.exe /AddKDC @NETBIOS_NAME@ @FQDN@
+	}
+}
+
+# complete
+Out-Host "`n==> install complete!!!"
+echo "install complete" | out-file -encoding utf8 $LogPath\@INSTALL_COMPLETE_FILE@
+
+taskkill /F /IM explorer.exe
+explorer
