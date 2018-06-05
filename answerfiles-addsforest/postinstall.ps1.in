@@ -101,9 +101,10 @@ switch($Stage) {
 
 		# Setup AD as Domain Controller
 		Out-Host "`n==> Setup AD as Domain Controller"
-		Install-windowsfeature -name AD-Domain-Services -IncludeManagementTools
 		$SafePasswd=(convertto-securestring "@ADMINPASSWORD@" -asplaintext -force)
+
 		# Installation
+		Install-windowsfeature -name AD-Domain-Services -IncludeManagementTools
 		Install-ADDSForest `
 		-DomainName @AD_DOMAIN@ `
 		-SafeModeAdministratorPassword $SafePasswd `
@@ -120,6 +121,7 @@ switch($Stage) {
 		Out-Host "`n==> Reboot to complete Active Directory setup"
 		Set-ItemProperty $RunOnceKey "NextRun" "powershell $PostProg afterADSetup >> @POST_INSTALL_LOG@ 2>&1"
 		shutdown -r -f -t 10 -c "Shutting down in 1 minute: Reboot to complete Active Directory setup"
+		exit
 	}
 
 	"afterADSetup" {
@@ -138,6 +140,7 @@ switch($Stage) {
 		Out-Host "`n==> Reboot to complete Root CA setup"
 		Set-ItemProperty $RunOnceKey "NextRun" "powershell $PostProg afterRootCASetup >> @POST_INSTALL_LOG@ 2>&1"
 		shutdown -r -f -t 10 -c "Shutting down in 1 minute: Reboot to complete Root CA setup"
+		exit
 	}
 
 	"afterRootCASetup" {
@@ -152,10 +155,11 @@ switch($Stage) {
 		Out-Host "`n==> Add KDC"
 		ksetup.exe /AddKDC @NETBIOS_NAME@ @FQDN@
 
-		# complete
-		taskkill /F /IM explorer.exe
-		explorer
-		Out-Host "`n==> install complete!!!"
-		echo "install complete" | out-file -encoding utf8 $LogPath\@INSTALL_COMPLETE_FILE@
 	}
 }
+
+# complete
+taskkill /F /IM explorer.exe
+explorer
+Out-Host "`n==> install complete!!!"
+echo "install complete" | out-file -encoding utf8 $LogPath\@INSTALL_COMPLETE_FILE@
