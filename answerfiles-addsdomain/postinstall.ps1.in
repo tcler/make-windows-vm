@@ -1,7 +1,7 @@
 
 #just for avoid getting unlikely -kdc option from $args[0]
 param (
-	[switch]$kdc = $ture,
+	[switch]$kdc = $ture
 )
 
 Function Out-Host {
