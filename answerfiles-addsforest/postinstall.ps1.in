@@ -155,6 +155,10 @@ switch($Stage) {
 		Out-Host "`n==> Add KDC"
 		ksetup.exe /AddKDC @NETBIOS_NAME@ @FQDN@
 
+		# Add DNS TXT record for nfsv4idmap
+		Out-Host "`n==> Add DNS TXT record"
+		Add-DnsServerResourceRecord -ZoneName @AD_DOMAIN@ -Name _nfsv4idmapdomain -Txt -DescriptiveText "@AD_DOMAIN@"
+
 	}
 }
 
