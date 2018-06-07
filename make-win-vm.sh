@@ -433,7 +433,7 @@ EOF
 echo -e "\n{INFO} run follow command to test SSH connection"
 echo "VM_INT_IP=$VM_INT_IP ADMINUSER=$ADMINUSER ADMINPASSWORD=$ADMINPASSWORD ./test-ssh.sh"
 echo "VM_INT_IP=$VM_INT_IP ADMINUSER=$ADMINUSER ADMINPASSWORD=$ADMINPASSWORD ./test-ssh.sh"|bash|
-	sed -r -e 's|\x1b.[0-9]+;1H||' -e '/administrator@/s/ *\x1b.[0-9]+;[0-9]+H//' -e 's/ *\x1b[^ ]*.*$//'
+	sed -r -e 's|\x1b.[0-9]+;1H||' -e '/administrator@/s/ *(\x1b.2J)?(\x1b.[0-9]+;[0-9]+H){1,2}/ /' -e 's/ *\x1b[^ ]*.*$//'
 
 if [[ "$CHECK_AD" = yes ]]; then
 	echo -e "\n{INFO} run follow command to test AD connection"
