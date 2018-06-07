@@ -142,6 +142,8 @@ Usage: $PEOG [OPTION]...
 		#Domain name of an existing domain.
   --parent-ip <parent-ip>
 		#IP address of an existing domain.
+  --openssh <url>
+		#url to download OpenSSH-Win64.zip
 EOF
 }
 
@@ -168,6 +170,7 @@ ARGS=$(getopt -o hu:p:t:b \
 	--long enable-kdc \
 	--long parent-domain: \
 	--long parent-ip: \
+	--long openssh: \
 	-a -n "$PROG" -- "$@")
 eval set -- "$ARGS"
 while true; do
@@ -196,6 +199,7 @@ while true; do
 	--enable-kdc) KDC_OPT="-kdc"; shift 1;;
 	--parent-domain) PARENT_DOMAIN="$2"; shift 2;;
 	--parent-ip) PARENT_IP="$2"; shift 2;;
+	--openssh) OpenSSHUrl="$2"; shift 2;;
 	--) shift; break;;
 	*) Usage; exit 1;; 
 	esac
@@ -317,6 +321,7 @@ process_ansf() {
 		-e "s/@KDC_OPT@/$KDC_OPT/g" \
 		-e "s/@PARENT_DOMAIN@/$PARENT_DOMAIN/g" \
 		-e "s/@PARENT_IP@/$PARENT_IP/g" \
+		-e "s|@OpenSSHUrl@|$OpenSSHUrl|g" \
 		$destdir/*
 	unix2dos $destdir/* >/dev/null
 	[[ -z "$PRODUCT_KEY" ]] &&
