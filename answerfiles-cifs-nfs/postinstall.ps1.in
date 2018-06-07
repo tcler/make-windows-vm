@@ -195,7 +195,11 @@ switch($Stage) {
 	}
 }
 # complete
-taskkill /F /IM explorer.exe
-explorer
 Out-Host "`n==> install complete!!!"
 echo "install complete" | out-file -encoding utf8 $LogPath\@INSTALL_COMPLETE_FILE@
+if ($LogPath -ne "C:") {
+	Copy-Item -Path $LogPath\* -Destination C:\
+}
+
+taskkill /F /IM explorer.exe
+explorer

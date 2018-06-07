@@ -393,7 +393,7 @@ done
 WIN_INSTALL_LOG=/tmp/$VM_NAME.install.log
 virtcat $VM_NAME $fsdev /$POST_INSTALL_LOGF |
 	iconv -f UTF-16LE -t UTF-8 - >$WIN_INSTALL_LOG
-WIN_IPCONFIG_LOG=/tmp/$VM_NAME.ipconfig.txt
+WIN_IPCONFIG_LOG=/tmp/$VM_NAME.ipconfig.log
 virtcat $VM_NAME $fsdev /$IPCONFIG_LOGF >$WIN_IPCONFIG_LOG
 dos2unix $WIN_INSTALL_LOG $WIN_IPCONFIG_LOG
 
