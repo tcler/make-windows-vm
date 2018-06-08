@@ -259,6 +259,7 @@ ADMINPASSWORD=${ADMINPASSWORD:-Sesame,0pen}
 
 # Setup Active Directory
 FQDN=$GUEST_HOSTNAME.$DOMAIN
+[[ -n "$PARENT_DOMAIN" ]] && FQDN+=.$PARENT_DOMAIN
 NETBIOS_NAME=$(echo ${DOMAIN//./} | tr '[a-z]' '[A-Z]')
 
 # =======================================================================
