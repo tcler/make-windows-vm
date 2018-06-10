@@ -145,6 +145,16 @@ switch($Stage) {
 		# Add KDC
 		Out-Host "`n==> Add KDC"
 		ksetup.exe /AddKDC @NETBIOS_NAME@ @FQDN@
+
+		# Check DNS settings
+		Out-Host "`n==> Check DNS settings"
+		$checkdns=$(nslookup -q=txt _nfsv4idmapdomain)
+		Out-Host "`n==> $checkdns"
+
+		# Check parent-child trust
+		Out-Host "`n==> Check parent-child trust"
+		$trust=$(Get-ADTrust -Filter *)
+		Out-Host "`n==> $trust"
 	}
 }
 
