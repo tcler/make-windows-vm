@@ -144,6 +144,7 @@ Usage: $PEOG [OPTION]...
 		#IP address of an existing domain.
   --openssh <url>
 		#url to download OpenSSH-Win64.zip
+  --overwrite	#Force to set vm-name, regardless whether the name is in use or not.
 EOF
 }
 
@@ -166,11 +167,12 @@ ARGS=$(getopt -o hu:p:t:b \
 	--long timeout: \
 	--long vncport: \
 	--long check-ad \
-	--long image-dir \
+	--long image-dir: \
 	--long enable-kdc \
 	--long parent-domain: \
 	--long parent-ip: \
 	--long openssh: \
+	--long overwrite \
 	-a -n "$PROG" -- "$@")
 eval set -- "$ARGS"
 while true; do
@@ -200,6 +202,7 @@ while true; do
 	--parent-domain) PARENT_DOMAIN="$2"; shift 2;;
 	--parent-ip) PARENT_IP="$2"; shift 2;;
 	--openssh) OpenSSHUrl="$2"; shift 2;;
+	--overwrite) OVERWRITE="yes"; shift 1;;
 	--) shift; break;;
 	*) Usage; exit 1;; 
 	esac
@@ -265,6 +268,11 @@ NETBIOS_NAME=$(echo ${DOMAIN//./} | tr '[a-z]' '[A-Z]')
 # =======================================================================
 # KVM Preparation
 # =======================================================================
+if [[ "$OVERWRITE" = "yes" ]]; then
+	virsh undefine $VM_NAME
+	virsh destroy $VM_NAME
+fi
+
 service libvirtd restart
 service virtlogd restart
 
