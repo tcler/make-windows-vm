@@ -1,4 +1,4 @@
-## make-windows-vm
+# make-windows-vm
 
 ## Why?
  There are some automated tests related to windows OS in our work. So we need to find ways to automate the installation and configuration of the windows OS, that's it.
@@ -7,119 +7,156 @@
 
  Ref: https://docs.microsoft.com/en-us/windows-hardware/manufacture/desktop/automate-windows-setup
 
-## dependencies install
+## File layout:
+```
+make-windows-vm/
+├── answerfiles
+│   ├── autounattend.xml.in
+│   └── postinstall.ps1.in
+├── answerfiles-addsdomain
+│   ├── autounattend.xml.in -> ../answerfiles/autounattend.xml.in
+│   └── postinstall.ps1.in
+├── answerfiles-addsforest
+│   ├── autounattend.xml.in -> ../answerfiles/autounattend.xml.in
+│   └── postinstall.ps1.in
+├── answerfiles-cifs-nfs
+│   ├── autounattend.xml.in -> ../answerfiles/autounattend.xml.in
+│   └── postinstall.ps1.in
+├── make-win-vm.sh
+├── README.md
+├── test-cert.sh
+├── test-cifs-nfs.sh
+└── test-ssh.sh
+```
+
+***Note***: There are four answerfiles{, -addsdomain, -addsforest, -cifs-nfs} directories for different usages. 
+Generally, answerfiles are used to deploy windows automatically. Usages are listed below:
+
+| Directory              | Usage                                         |
+| ---------------------- | --------------------------------------------- |
+| answerfiles            | windows server without any services cofigured |
+| answerfiles-addsdomain | active directory child domain                 |
+| answerfiles-addsforest | active directory forest                       |
+| answerfiles--cifs-nfs  | windows NFS/CIFS server                       |
+
+## Dependencies:
+
+| Package            	| Notes                                                   |
+| --------------------- | ------------------------------------------------------- |
+| libvirt            	| virtual machine service daemon                          |
+| libvirt-client     	| virtual machine/network management                      |
+| virt-install       	| virtual machine creation                                |
+| virt-viewer           | graphical interface for viewing virtual machine         |
+| qemu-kvm              | core virt package                                       |
+| genisoimage           | for creating the CD-ROM answerfile disk                 |
+| libguestfs-tools      | windows vm registry reader                              |
+| libguestfs-tools-c    | used to check for the wait file                         |
+| libguestfs-winsupport | windows vm files reader (**OPTIONAL**)                  |
+| openldap-clients   	| for testing AD connection and getting AD CA cert        |
+| dos2unix/unix2dos     | for byte encoding conversion                            |
+| libosinfo             | used to check windows image information (**OPTIONAL**)  |
+
+##### On RHEL/CentOS:
 ```
 sudo yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-sudo yum install libvirt libvirt-client virt-install virt-viewer qemu-kvm genisoimage \
-  libguestfs-tools libguestfs-tools-c openldap-clients dos2unix glibc-common libosinfo libguestfs-winsupport unix2dos
+```
+```
+sudo yum install libvirt libvirt-client virt-install virt-viewer qemu-kvm genisoimage libguestfs-tools \
+libguestfs-tools-c openldap-clients dos2unix unix2dos glibc-common libguestfs-winsupport unix2dos
 ```
 
-## example
-```
-vmname=win2012r2-yjh
-virsh undefine $vmname; virsh destroy $vmname
+## Steps:
+ - Make sure the dependencies mentioned above are installed and services are started
+ - Download a windows ISO(If you have not bought a license, you can try evaluation versions)
+   - https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server
+ - Run make-win-vm.sh script with the required parameters (see ***Examples*** below)
+ - Get information about windows after installation from /tmp directory if necessary
+   - */tmp/$vnmane.env* contains windows IP, FQDN, username, etc.
+   - */tmp/postinstall.log* contains the configuration log of windows installation.
 
-./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2.iso --product-key W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9 \
-    --os-variant win2k12r2 --vm-name $vmname --domain ad.test -p ~Ocgxyz \
-    --cpus 2 --ram 2048 --disk-size 20 -b --vncport 7777 --ad-forest-level Win2012R2  ./answerfiles-addsforest/*
+## Examples:
+##### Setup Active Directory forest:
+```
+./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2.iso --os-variant win2k12r2 \
+    --product-key W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9 --vm-name $vmname --domain ad.test -p ~Ocgxyz --cpus 2 \
+    --ram 2048 --disk-size 20 -b --vncport 7777 --ad-forest-level Win2012R2  ./answerfiles-addsforest/*
 
 ./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2-Evaluation.iso \
     --os-variant win2k12r2 --vm-name rootds --domain kernel.test -p ~Ocgabc \
     --cpus 2 --ram 2048 --disk-size 20 -b --vncport 7788 ./answerfiles-addsforest/*
-
+```
+##### Setup Active Directory child domain:
+```
 ./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2-Evaluation.iso \
     --os-variant win2k12r2 --vm-name child --parent-domain kernel.test --domain fs  -p ~Ocgxyz \
     --cpus 2 --ram 2048 --disk-size 20 -b --vncport 7789 ./answerfiles-addsdomain/* --parent-ip $addr
-
+```
+##### Setup Windows as NFS/CIFS server:
+```
 ./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2-Evaluation.iso \
     --os-variant win2k12r2 --vm-name $vmname --domain nfs.test -p ~Ocgxyz \
     --cpus 2 --ram 2048 --disk-size 60 --vncport 7799  ./answerfiles-cifs-nfs/* --enable-kdc
-
-# tips 1:
-# libguestfs can't mount ntfs after RHEL-7.2, because libguestfs-winsupport was disabled for some reason.
-# Now seems only the users of RHEL Server could get libguestfs-winsupport.
-#
-# for users of RHEL Workstation and Client, we provide a workaround: Use floppy as answer file media type,
-# thus we can write windows guest info on floppy instead and still could read them from host.
-#
-# tips 2:
-# if passwd is too week will cause failure to setup AD
 ```
- 
-## steps:
- - Download a windows ISO(If you have not bought a license, you can try evaluate versions)
-   - https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server
- - Define global file name to share info between Host and Win Guest
-   - install log file
-   - complete file
- - Prepare answer file autounattend.xml and the data/parameters needed during install
-   - win product key
-   - win username & passwd
-   - win hostname(eg: win2012)
-   - win domain name(eg: ad.test)
-   - win media type to keep answer files(floppy or cdrom)
- - Prepare windows config scripts and parameters # fix me
-   - AD(Active Directory)
-     - DOMAIN LEVEL
-     - FOREST LEVEL
-   - cert
-     - ?
-     - ?
-   - NFS
-     - export path
-     - export options
-   - CIFS
-     - export path
-     - export options
- - Prepare vm parameters
-   - vm instance name
-   - vm cpu vcpu
-   - vm mem
-   - vm network config
-   - vm disk options
 
+ ***NOTE:***
+1. All the examples above provide as much details as possible but generally not all the parameters above are
+mandatory. To get more help, see README-options.md or just use -h (--help).
+
+2. libguestfs can't mount ntfs after RHEL-7.2, because libguestfs-winsupport was disabled for some reason. 
+Now it seems only RHEL Server provides libguestfs-winsupport.
+
+3. For users of other distributions, we provide a workaround: Use floppy as answer file media type instead of iso, 
+thus we can write windows guest info on floppy instead and still could read them from host (This is done automatically 
+so no extra operations are needed).
+
+4. If the password of windows is too weak, it will fail to deploy windows.
 
 
 ## Tips
-### [0] about libguestfs ntfs and libguestfs-winsupport
+### [0] About libguestfs ntfs and libguestfs-winsupport
+Ref: http://libguestfs.org/guestfs-faq.1.html
+
+If you cannot open Windows guests which use NTFS. You may see errors like:
 ```
-# ref: http://libguestfs.org/guestfs-faq.1.html
-Cannot open Windows guests which use NTFS.
-
-You see errors like:
-
  mount: unknown filesystem type 'ntfs'
-
+```
 On Red Hat Enterprise Linux or CentOS < 7.2, you have to install the libguestfs-winsupport package. In RHEL ≥ 7.2, libguestfs-winsupport is part of the base RHEL distribution, but see the next question.
 "mount: unsupported filesystem type" with NTFS in RHEL ≥ 7.2
 
 In RHEL 7.2 we were able to add libguestfs-winsupport to the base RHEL distribution, but we had to disable the ability to use it for opening and editing filesystems. It is only supported when used with virt-v2v(1). If you try to use guestfish(1) or guestmount(1) or some other programs on an NTFS filesystem, you will see the error:
-
+```
  mount: unsupported filesystem type
-
+```
 This is not a supported configuration, and it will not be made to work in RHEL. Don't bother to open a bug about it, as it will be immediately CLOSED -> WONTFIX.
 
 You may compile your own libguestfs removing this restriction, but that won't be endorsed or supported by Red Hat. 
-```
 
-### [1] get wim images info
+### [1] Get wim images info
+#### From windows:
 ```
-# from windows
 CMD C:\> dism /Get-WimInfo /WimFile:F:\sources\install.wim
 PS C:\> Get-WindowsImage -ImagePath "c:\imagestore\install.wim" -Name Ultimate
 PS C:\> Get-WindowsImage -ImagePath "c:\imagestore\install.vhd"
+```
 
-# from linux
-# install winlib (https://wimlib.net/)
+#### From linux:
+ - Install dependencies:
+```
 sudo yum install libxml2-devel fuse-devel
+```
+ - Install winlib for source (https://wimlib.net/):
+```
 git clone git://wimlib.net/wimlib && cd wimlib && ./confiure && make && sudo make install
-
-# mount your windows install ISO file
+```
+ - Mount your windows install ISO file:
+```
 sudo mkdir -p /mnt/image
 ISO=/var/lib/libvirt/images/Win2012r2-Evaluation.iso
 sudo mount $ISO /mnt/image
+```
 
-# get all images info
+ - Get all images info:
+```
 wiminfo /mnt/image/sources/install.wim
 <skip>
 
