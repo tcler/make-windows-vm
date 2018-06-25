@@ -93,8 +93,10 @@ Usage: $PEOG [OPTION]...
 		#hostname of windows
   --domain <domain>
 		#*Specify windows domain name.
-  -u <user>     #Specify user for install and config, default: Administrator
-  -p <password> #*Specify user's password for windows. for configure AD/DC:
+  -u, --user <user>
+		#Specify user for install and config, default: Administrator
+  -p, --password <password>
+		#*Specify user's password for windows. for configure AD/DC:
 		  must use a mix of uppercase letters, lowercase letters, numbers, and symbols
 
   --ad-forest-level <Default|Win2008|Win2008R2|Win2012|Win2012R2|WinThreshold>
@@ -168,11 +170,13 @@ ARGS=$(getopt -o hu:p:t:b \
 	--long vncport: \
 	--long check-ad \
 	--long image-dir: \
+	--long password: \
 	--long enable-kdc \
 	--long parent-domain: \
 	--long parent-ip: \
 	--long openssh: \
 	--long overwrite \
+	--long user: \
 	-a -n "$PROG" -- "$@")
 eval set -- "$ARGS"
 while true; do
@@ -183,8 +187,8 @@ while true; do
 	--product-key) PRODUCT_KEY="$2"; shift 2;;
 	--hostname) GUEST_HOSTNAME="$2"; shift 2;;
 	--domain) DOMAIN="$2"; shift 2;;
-	-u) ADMINUSER="$2"; shift 2;;
-	-p) ADMINPASSWORD="$2"; shift 2;;
+	-u|--user) ADMINUSER="$2"; shift 2;;
+	-p|password) ADMINPASSWORD="$2"; shift 2;;
 	--ad-forest-level) AD_FOREST_LEVEL="$2"; shift 2;;
 	--ad-domain-level) AD_DOMAIN_LEVEL="$2"; shift 2;;
 	--vm-name) VM_NAME="$2"; shift 2;;
