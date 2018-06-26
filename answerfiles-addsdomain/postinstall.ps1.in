@@ -42,11 +42,6 @@ if (Test-Path -Path A:) {
 }
 $PostProg = "@ANSF_DRIVE_LETTER@\postinstall.ps1"
 $RunOnceKey = "HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce"
-$DefaultOpenSSHUrl = "https://github.com/PowerShell/Win32-OpenSSH/releases/download/v7.7.1.0p1-Beta/OpenSSH-Win64.zip"
-$OpenSSHUrl = "@OpenSSHUrl@"
-if ($OpenSSHUrl -eq "") {
-	$OpenSSHUrl = $DefaultOpenSSHUrl
-}
 
 $Stage = $args[0]
 if (!$Stage) { $Stage = "base" }
@@ -100,8 +95,11 @@ switch($Stage) {
 		}
 
 		# installing openssh
-		Out-Host "`n==> install and start ssh server"
-		Install-Sshd -Url $OpenSSHUrl
+		$OpenSSHUrl = "@OpenSSHUrl@"
+		if ($OpenSSHUrl) {
+			Out-Host "`n==> install and start ssh server"
+			Install-Sshd -Url $OpenSSHUrl
+		}
 
 		# Setup child domain to test multi domain cases
 		Out-Host "`n==> Setup child domain"
