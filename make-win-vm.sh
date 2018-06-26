@@ -365,7 +365,9 @@ case "$ANSF_MEDIA_TYPE" in
 esac
 \rm -rf $media_mp
 
+# =======================================================================
 # Execute virt-install command with the parameters given
+# =======================================================================
 echo -e "\n{INFO} virt-install ..."
 \rm -f $VM_IMAGE
 #virt-install --connect=qemu:///system --hvm --accelerate --cpu host,-invtsc \
@@ -383,7 +385,9 @@ virt-install --connect=qemu:///system --hvm --accelerate --cpu host \
 # workaround for https://bugzilla.redhat.com/1043249
 export LIBGUESTFS_BACKEND=direct
 
+# =======================================================================
 # To check whether the installation is done
+# =======================================================================
 virtcat() {
 	local vm=$1 dev=$2 file=$3 ret=0
 	if virt-cat --help|grep -q .--mount; then
@@ -407,6 +411,10 @@ for ((i=0; i<=VM_TIMEOUT; i++)) ; do
 done
 ((i > $VM_TIMEOUT)) && { echo -e "\n{WARN} Install timeout($VM_TIMEOUT)"; }
 
+# =======================================================================
+# Post Setup
+# =======================================================================
+
 # Get install and ipconfig log
 WIN_INSTALL_LOG=/tmp/$VM_NAME.install.log
 virtcat $VM_NAME $fsdev /$POST_INSTALL_LOGF |
@@ -419,9 +427,6 @@ dos2unix $WIN_INSTALL_LOG $WIN_IPCONFIG_LOG
 echo -e "\n{INFO} eject media ..."
 eject_cds $VM_NAME  $WIN_ISO $ANSF_MEDIA_PATH
 
-# =======================================================================
-# Post Setup
-# =======================================================================
 # Save relative variables into a log file
 echo -e "\n{INFO} show guest info:"
 VM_INT_IP=$(awk '/^ *IPv4 Address/ {if ($NF ~ /^192/) print $NF}' $WIN_IPCONFIG_LOG)
