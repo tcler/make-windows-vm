@@ -37,7 +37,7 @@ Generally, answerfiles are used to deploy windows automatically. Usages are list
 | answerfiles            | windows server without any services cofigured |
 | answerfiles-addsdomain | active directory child domain                 |
 | answerfiles-addsforest | active directory forest                       |
-| answerfiles--cifs-nfs  | windows NFS/CIFS server                       |
+| answerfiles-cifs-nfs   | windows NFS/CIFS server                       |
 
 ## Dependencies:
 

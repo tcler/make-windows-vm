@@ -3,33 +3,33 @@
 ./make-win-vm.sh [OPTION]...
 ```
 ## Options
-| Options                   | Paramter required | Default value       | Mandatory     | Condition                                    |
-| ------------------------- | :---------------: | :-----------------: | :-----------: | :------------------------------------------: |
-| --ad-forest-level         | Yes               | Default             | Yes           |                                              |
-| --ad-domain-level         | Yes               | Default             | Yes           |                                              |
-| -b, --bridge              | No                |                     | No            |                                              |
-| --cpus                    | Yes               | 2                   | Yes           |                                              |
-| --check-ad                | No                |                     | No            |                                              |
-| --disk-size               | Yes               |                     | Yes           |                                              |
-| --domain                  | Yes               | win.com             | Yes           |                                              |
-| --enable-kdc              | No                |                     | No            |                                              |
-| -h, --help                | No                |                     | No            |                                              |
-| --hostname                | Yes               | (same as --vm-name) | Yes           |                                              |
-| --image                   | Yes               |                     | Yes           |                                              |
-| --image-dir               | Yes               | /home/virt-images   | No            |                                              |
-| --openssh                 | Yes               |                     | No            |                                              |
-| --os-variant              | Yes               |                     | Yes           |                                              |
-| --parent-domain           | Yes               |                     | Conditionally | Mandatory when using answerfiles-addsdomain/ |
-| --parent-ip               | Yes               |                     | Conditionally | Ditto                                        |
-| --product-key             | Yes               |                     | Conditionally | Mandatory when not using evaluation versions |
-| -p, --password            | Yes               | Sesame,0pen         | Yes           |                                              |
-| --ram                     | Yes               | 2048                | Yes           |                                              |
-| -t, --ans-file-media-type | Yes               | floppy              | Yes           |                                              |
-| --timeout                 | Yes               | 60                  | Yes           |                                              |
-| -u, --user                | Yes               | Administrator       | Yes           |                                              |
-| --vm-name                 | Yes               |                     | Yes           |                                              |
-| --vncport                 | Yes               | 7788                | No            |                                              |
-| --wim-index               | Yes               | 4                   | No            |                                              |
+| Options                      | Default value       | Mandatory     | Condition                                    |
+| :--------------------------: | :-----------------: | :-----------: | :------------------------------------------: |
+| --ad-forest-level <>         | Default             | No            |                                              |
+| --ad-domain-level <>         | Default             | No            |                                              |
+| -b, --bridge                 |                     | No            |                                              |
+| --cpus <>                    | 2                   | No            |                                              |
+| --check-ad                   |                     | No            |                                              |
+| --disk-size <>               |                     | Yes           |                                              |
+| --domain <>                  | win.com             | No            |                                              |
+| --enable-kdc                 |                     | No            |                                              |
+| -h, --help                   |                     | No            |                                              |
+| --hostname <>                | (same as --vm-name) | No            |                                              |
+| --image <>                   |                     | Yes           |                                              |
+| --image-dir <>               | /home/virt-images   | No            |                                              |
+| --openssh <>                 |                     | No            |                                              |
+| --os-variant <>              |                     | Yes           |                                              |
+| --parent-domain <>           |                     | Conditionally | Mandatory when using answerfiles-addsdomain/ |
+| --parent-ip <>               |                     | Conditionally | Ditto                                        |
+| --product-key <>             |                     | Conditionally | Mandatory when not using evaluation versions |
+| -p, --password <>            | Sesame,0pen         | No            |                                              |
+| --ram <>                     | 2048                | No            |                                              |
+| -t, --ans-file-media-type <> | floppy              | No            |                                              |
+| --timeout <>                 | 60                  | No            |                                              |
+| -u, --user <>                | Administrator       | No            |                                              |
+| --vm-name <>                 |                     | Yes           |                                              |
+| --vncport <>                 | 7788                | No            |                                              |
+| --wim-index <>               | 4                   | No            |                                              |
 
 ## Description
 **--ad-forest-level**  
