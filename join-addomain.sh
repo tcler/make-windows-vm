@@ -3,14 +3,27 @@
 LANG=C
 PROG=${0##*/}
 
+# ==============================================================================
+# Global variables
+# ==============================================================================
+KRB_CONF=/etc/krb5.conf
+SMB_CONF=/etc/samba/smb.conf
+HOSTS_CONF=/etc/hosts
+RESOLV_CONF=/etc/resolv.conf
+HOSTNAME_CONF=/etc/hostname
+SSSD_CONF=/etc/sssd/sssd.conf
+
 gen_netbios_name() {
 	ramdon=$(date | md5sum)
 	echo "${HOSTNAME:0:5}-${random:0:5}"
 }
 
 config_krb() {
+	local admin=$1
+	local pass=$2
+
 	for principal in NFS HOST ROOT; do
-		if ! net ads keytab add NFS -U Administrator%${PASSWD}; then
+		if ! net ads keytab add NFS -U ${admin}%${pass}; then
 			echo "Configure Secure NFS Client Failed, cannot add principal: $principal"
 			exit 1
 		fi
@@ -23,10 +36,12 @@ config_krb() {
 }
 
 config_idmap() {
+	local domain_name=$1
+
 	# Configure /etc/sssd/sssd.conf
 	authconfig --update --enablesssd --enablesssdauth --enablemkhomedir
 	echo "$sssd_ad_providerConfTemp" >$SSSD_CONF
-	ed -r -i -e "/example.com/{s//$ADDS_NAME/g}" $SSSD_CONF
+	ed -r -i -e "/example.com/{s//$domain_name/g}" $SSSD_CONF
 	chmod 600 $SSSD_CONF
 	restorecon $SSSD_CONF
 	echo "$ cat $SSSD_CONF"
@@ -44,21 +59,24 @@ config_idmap() {
 	service rpcidmapd restart
 
 	for user in Administrator krbtgt; do
-		if ! getent passwd $user@${ADDS_NAME}  |grep ${ADDS_NAME}; then
-			echo "Configure NFSv4 IDMAP Client Failed, query user information failed for $user@${ADDS_NAME}"
+		if ! getent passwd $user@${domain_name}  |grep ${domain_name}; then
+			echo "Configure NFSv4 IDMAP Client Failed, query user information failed for $user@${domain_name}"
 			exit 1
 		fi
 	done
 
 	for group in "Domain Admins" "Domain Users"; do
-		if ! getent group $group@${ADDS_NAME} |grep ${ADDS_NAME}; then
-			echo "Configure NFSv4 IDMAP Client Failed, query group information failed for Domain $group@${ADDS_NAME}"
+		if ! getent group $group@${domain_name} |grep ${domain_name}; then
+			echo "Configure NFSv4 IDMAP Client Failed, query group information failed for Domain $group@${domain_name}"
 		fi
 	done
 }
 
 cleanup() {
-	if ! net ads leave -U Administrator%${PASSWD}; then
+	local admin=$1
+	local pass=$2
+
+	if ! net ads leave -U ${admin}%${pass}; then
 		echo "Failed to leave domain"
 		exit 1
 	fi
@@ -71,16 +89,16 @@ Usage() {
 cat <<END
 Usage: $PROG [OPTION]...
 
-        -h|--help			# Print this help
+	-h|--help			# Print this help
 
-        -i|--addc-ip <IP>		# Specify IP of a Windows AD DC for target AD DS Domain
-        -c|--cleanup			# Leave AD Domain and delete entry in AD database
+	-i|--addc-ip <IP>		# Specify IP of a Windows AD DC for target AD DS Domain
+	-c|--cleanup			# Leave AD Domain and delete entry in AD database
 
-        -e|--enctype <DES|AES>    	# Choose enctype for Kerberos TGT and TGS instead of default
-        -p|--password <password>     	# Specify password of Administrator@Domain instead of default
+	-e|--enctype <DES|AES>    	# Choose enctype for Kerberos TGT and TGS instead of default
+	-p|--password <password>     	# Specify password of Administrator@Domain instead of default
 
-        --config-krb			# Config current client as a Secure NFS client
-        --config-idmap			# Config current client as an NFSv4 IDMAP client
+	--config-krb			# Config current client as a Secure NFS client
+	--config-idmap			# Config current client as an NFSv4 IDMAP client
 	--root-dc <IP>			# root DC ip
 	...
 	TBD
@@ -114,7 +132,7 @@ while true; do
 done
 
 if [[ "$CLEANUP" = "yes" ]]; then
-	cleaup
+	cleaup Administrator ${PASSWD}
 elif [[ -z "$ADDC_IP" || -z "$PASSWD" ]]; then
 	echo "Missing --addc-ip or --password parameters."
 	Usage
@@ -129,17 +147,6 @@ if [[ "$#" -ne 0 ]]; then
 	echo "Can not connect to AD domain"
 	exit 1
 fi
-
-# ==============================================================================
-# Global variables
-# ==============================================================================
-KRB_CONF=/etc/krb5.conf
-SMB_CONF=/etc/samba/smb.conf
-HOSTS_CONF=/etc/hosts
-RESOLV_CONF=/etc/resolv.conf
-HOSTNAME_CONF=/etc/hostname
-SSSD_CONF=/etc/sssd/sssd.conf
-NBNS_NAME=$(gen_netbios_name)
 
 # Specify Standard KRB5 Configuration File
 krbConfTemp="[logging]
@@ -190,21 +197,22 @@ sssd_ad_providerConfTemp="[nss]
 # ==============================================================================
 # Get domain controller infomation
 # ==============================================================================
-GET_AD_INFO="adcli info --domain-controller=${ADDC_IP}"
-ADDC_FQDN=$($GET_AD_INFO        | awk '/domain-controller =/{print $NF}' | tr a-z A-Z);
-ADDS_NAME=$($GET_AD_INFO        | awk '/domain-name =/{print $NF}'       | tr a-z A-Z);
-ADDS_NETBIOS=$($GET_AD_INFO     | awk '/domain-short =/{print $NF}'      | tr a-z A-Z);
-ADDC_NETBIOS=$(echo $ADDC_FQDN | awk -F . '{print $1}'                  | tr a-z A-Z);
+AD_INFO="$(adcli info --domain-controller=${ADDC_IP})"
+ADDC_FQDN=$(echo "$AD_INFO" | awk '/domain-controller =/{print $NF}' | tr a-z A-Z);
+ADDC_NETBIOS=${ADDC_FQDN%%.*};
 
-if [[ -z "$ADDC_FQDN" || -z "$ADDS_NAME" || -z "$ADDS_NETBIOS" || -z "$ADDC_NETBIOS" ]]; then
+DOMAIN_NAME=$(echo "$AD_INFO" | awk '/domain-name =/{print $NF}' | tr a-z A-Z);
+DOMAIN_SHORT=$(echo "$AD_INFO" | awk '/domain-short =/{print $NF}' | tr a-z A-Z);
+
+if [[ -z "$ADDC_FQDN" || -z "$ADDC_NETBIOS" || -z "$DOMAIN_NAME" || -z "$DOMAIN_SHORT" ]]; then
 	echo "Error when getting information from domain controller"
 	exit 1
 fi
 
 echo "ADDC_FQDN=$ADDC_FQDN"
-echo "ADDS_NAME=$ADDS_NAME"
-echo "ADDS_NETBIOS=$ADDS_NETBIOS"
 echo "ADDC_NETBIOS=$ADDC_NETBIOS"
+echo "DOMAIN_NAME=$DOMAIN_NAME"
+echo "DOMAIN_SHORT=$DOMAIN_SHORT"
 
 # ==============================================================================
 # Join domain
@@ -215,6 +223,7 @@ kdestroy -A
 \rm -f /tmp/krb5cc*  /var/tmp/krb5kdc_rcache  /var/tmp/rc_kadmin_0
 
 # Use short hostname to satisfy NBNS standard in Windows Domain (RFC 1002)...
+NBNS_NAME=$(gen_netbios_name)
 hostnamectl set-hostname $NBNS_NAME
 echo ${NBNS_NAME} > $HOSTNAME_CONF
 echo "$ cat $HOSTNAME_CONF"
@@ -224,7 +233,7 @@ cat $HOSTNAME_CONF
 echo -e "[main]\ndns=none" >/etc/NetworkManager/NetworkManager.conf
 mv $RESOLV_CONF $RESOLV_CONF.orig
 {
-	echo "search $ADDS_NAME"
+	echo "search $DOMAIN_NAME"
 	[[ -n "$ROOT_DC" ]] && echo "nameserver $ROOT_DC"
 	echo "nameserver $ADDC_IP";
 } >$RESOLV_CONF
@@ -242,7 +251,7 @@ cat $HOSTS_CONF
 
 # Configure /etc/krb5.conf
 echo "$krbConfTemp" >$KRB_CONF
-REALM="$ADDS_NAME"
+REALM="$DOMAIN_NAME"
 krbKDC="$ADDC_FQDN"
 sed -r -i -e 's;^#+;;' -e "/EXAMPLE.COM/{s//$REALM/g}" -e "/kerberos.example.com/{s//$krbKDC/g}"   $KRB_CONF
 sed -r -i -e "/ (\.)?example.com/{s// \1${krbKDC#*.}/g}"                                           $KRB_CONF
@@ -269,32 +278,32 @@ cat $KRB_CONF
 # Configure /etc/samba/smb.conf
 cat > $SMB_CONF <<EOFL
 [global]
-workgroup = $ADDS_NETBIOS
+workgroup = $DOMAIN_SHORT
 client signing = yes
 client use spnego = yes
 kerberos method = secrets and keytab
 password server = $ADDC_FQDN
-realm = $ADDS_NAME
+realm = $DOMAIN_NAME
 security = ads
 EOFL
 echo "$ cat $SMB_CONF"
 cat $SMB_CONF
 
 # Fetch TGT
-if ! KRB5_TRACE=/dev/stdout kinit -V Administrator@${ADDS_NAME} <<< ${PASSWD}; then
-	echo "AD Integration Failed, cannot get TGT principal of Administrator@${ADDS_NAME} during kinit"
+if ! KRB5_TRACE=/dev/stdout kinit -V Administrator@${DOMAIN_NAME} <<< ${PASSWD}; then
+	echo "AD Integration Failed, cannot get TGT principal of Administrator@${DOMAIN_NAME} during kinit"
 	exit 1;
 fi
 
 if ! net ads join -k; then
 	echo "AD Integration Failed, cannot join AD Domain by 'net ads'"
-        exit 1;
+	exit 1;
 fi
 
 if [[ "$CONF_KRB" = "yes" ]]; then
-	config_krb
+	config_krb Administrator ${PASSWD}
 fi
 
 if [[ "$CONF_IDMAP" = "yes" ]]; then
-	config_idmap
+	config_idmap $DOMAIN_NAME
 fi
