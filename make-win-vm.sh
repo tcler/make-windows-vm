@@ -81,7 +81,7 @@ eject_cds() {
 # ==============================================================================
 Usage() {
 cat <<EOF
-Usage: $PEOG [OPTION]...
+Usage: $PROG [OPTION]...
 
   -h, --help    #Display this help.
 
