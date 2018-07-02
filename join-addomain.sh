@@ -13,8 +13,57 @@ RESOLV_CONF=/etc/resolv.conf
 HOSTNAME_CONF=/etc/hostname
 SSSD_CONF=/etc/sssd/sssd.conf
 
+# Specify Standard KRB5 Configuration File
+krbConfTemp="[logging]
+  default = FILE:/var/log/krb5libs.log
+
+[libdefaults]
+  default_realm = EXAMPLE.COM
+  dns_lookup_realm = true
+  dns_lookup_kdc = true
+  ticket_lifetime = 24h
+  renew_lifetime = 7d
+  forwardable = true
+  rdns = false
+
+[realms]
+  EXAMPLE.COM = {
+    kdc = kerberos.example.com
+    admin_server = kerberos.example.com
+    default_domain = kerberos.example.com
+  }
+
+[domain_realm]
+  .example.com = .EXAMPLE.COM
+  example.com = EXAMPLE.COM"
+
+# Specify Standard SSSD ad_provider Configuration File
+sssd_ad_providerConfTemp="[nss]
+  fallback_homedir = /home/%u
+  shell_fallback = /bin/sh
+  allowed_shells = /bin/sh,/bin/rbash,/bin/bash
+  vetoed_shells = /bin/ksh
+
+[sssd]
+  config_file_version = 2
+  domains = example.com
+  services = nss, pam, pac
+
+[domain/example.com]
+  id_provider = ad
+  auth_provider = ad
+  chpass_provider = ad
+  access_provider = ad
+  cache_credentials = true
+  override_homedir = /home/%d/%u
+  default_shell = /bin/bash
+  use_fully_qualified_names = True"
+
+# ==============================================================================
+# Functions
+# ==============================================================================
 gen_netbios_name() {
-	ramdon=$(date | md5sum)
+	random=$(date | md5sum)
 	echo "${HOSTNAME:0:5}-${random:0:5}"
 }
 
@@ -23,7 +72,7 @@ config_krb() {
 	local pass=$2
 
 	for principal in NFS HOST ROOT; do
-		if ! net ads keytab add NFS -U ${admin}%${pass}; then
+		if ! net ads keytab add $principal -U ${admin}%${pass}; then
 			echo "Configure Secure NFS Client Failed, cannot add principal: $principal"
 			exit 1
 		fi
@@ -41,7 +90,7 @@ config_idmap() {
 	# Configure /etc/sssd/sssd.conf
 	authconfig --update --enablesssd --enablesssdauth --enablemkhomedir
 	echo "$sssd_ad_providerConfTemp" >$SSSD_CONF
-	ed -r -i -e "/example.com/{s//$domain_name/g}" $SSSD_CONF
+	sed -r -i -e "/example.com/{s//$domain_name/g}" $SSSD_CONF
 	chmod 600 $SSSD_CONF
 	restorecon $SSSD_CONF
 	echo "$ cat $SSSD_CONF"
@@ -147,52 +196,6 @@ if [[ "$#" -ne 0 ]]; then
 	echo "Can not connect to AD domain"
 	exit 1
 fi
-
-# Specify Standard KRB5 Configuration File
-krbConfTemp="[logging]
-  default = FILE:/var/log/krb5libs.log
-
-[libdefaults]
-  default_realm = EXAMPLE.COM
-  dns_lookup_realm = true
-  dns_lookup_kdc = true
-  ticket_lifetime = 24h
-  renew_lifetime = 7d
-  forwardable = true
-  rdns = false
-
-[realms]
-  EXAMPLE.COM = {
-    kdc = kerberos.example.com
-    admin_server = kerberos.example.com
-    default_domain = kerberos.example.com
-  }
-
-[domain_realm]
-  .example.com = .EXAMPLE.COM
-  example.com = EXAMPLE.COM"
-
-# Specify Standard SSSD ad_provider Configuration File
-sssd_ad_providerConfTemp="[nss]
-  fallback_homedir = /home/%u
-  shell_fallback = /bin/sh
-  allowed_shells = /bin/sh,/bin/rbash,/bin/bash
-  vetoed_shells = /bin/ksh
-
-[sssd]
-  config_file_version = 2
-  domains = example.com
-  services = nss, pam, pac
-
-[domain/example.com]
-  id_provider = ad
-  auth_provider = ad
-  chpass_provider = ad
-  access_provider = ad
-  cache_credentials = true
-  override_homedir = /home/%d/%u
-  default_shell = /bin/bash
-  use_fully_qualified_names = True"
 
 # ==============================================================================
 # Get domain controller infomation
