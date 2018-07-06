@@ -252,6 +252,7 @@ DEFAULT_VM_IMG_DIR=/var/lib/libvirt/images
 VM_IMG_DIR=${VM_IMG_DIR:-/home/virt-images}
 VM_TIMEOUT=${VM_TIMEOUT:-60}
 VIRTHOST=$(hostname -f)
+VNC_PORT=${VNC_PORT:-7788}
 mkdir -p $VM_IMG_DIR
 chcon --reference=$DEFAULT_VM_IMG_DIR $VM_IMG_DIR
 
@@ -379,7 +380,7 @@ virt-install --connect=qemu:///system --hvm --accelerate --cpu host \
 	--disk path=$ANSF_MEDIA_PATH,device=$ANSF_MEDIA_TYPE \
 	--serial file,path=$SERIAL_PATH --serial pty \
 	--network $VM_NET_OPT_EXTERNAL --network $VM_NET_OPT_INTERNAL \
-	--vnc --vnclisten 0.0.0.0 --vncport ${VNC_PORT:-7788} || { echo error $? from virt-install ; exit 1 ; }
+	--vnc --vnclisten 0.0.0.0 --vncport ${VNC_PORT} || { echo error $? from virt-install ; exit 1 ; }
 \rm $SERIAL_PATH
 
 # workaround for https://bugzilla.redhat.com/1043249
