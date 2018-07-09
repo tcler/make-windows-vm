@@ -126,6 +126,7 @@ switch($Stage) {
 		$cifsShareName = "cifstest"
 		mkdir $cifsPath
 		New-SmbShare -Name $cifsShareName -Path $cifsPath -Description "for cifs share test 0_o"
+		Grant-SmbShareAccess -Name $cifsShareName -AccountName "Everyone" -AccessRight Full -Force
 		Get-SmbShareAccess -Name $cifsShareName
 
 		# for login without passwd from client
