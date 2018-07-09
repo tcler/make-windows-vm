@@ -115,7 +115,7 @@ config_idmap() {
 	done
 
 	for group in "Domain Admins" "Domain Users"; do
-		if ! getent group $group@${domain_name} |grep ${domain_name}; then
+		if ! getent group "$group"@${domain_name} |grep ${domain_name}; then
 			echo "Configure NFSv4 IDMAP Client Failed, query group information failed for Domain $group@${domain_name}"
 		fi
 	done
@@ -181,7 +181,8 @@ while true; do
 done
 
 if [[ "$CLEANUP" = "yes" ]]; then
-	cleaup Administrator ${PASSWD}
+	cleanup Administrator ${PASSWD}
+	exit 1
 elif [[ -z "$ADDC_IP" || -z "$PASSWD" ]]; then
 	echo "Missing --addc-ip or --password parameters."
 	Usage
@@ -300,7 +301,7 @@ fi
 
 if ! net ads join -k; then
 	echo "AD Integration Failed, cannot join AD Domain by 'net ads'"
-	exit 1;
+	exit 1
 fi
 
 if [[ "$CONF_KRB" = "yes" ]]; then
