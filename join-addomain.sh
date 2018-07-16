@@ -279,33 +279,52 @@ fi
 echo "$ cat $KRB_CONF"
 cat $KRB_CONF
 
-# Configure /etc/samba/smb.conf
-cat > $SMB_CONF <<EOFL
-[global]
-workgroup = $DOMAIN_SHORT
-client signing = yes
-client use spnego = yes
-kerberos method = secrets and keytab
-password server = $ADDC_FQDN
-realm = $DOMAIN_NAME
-security = ads
+
+ad_net_join() {
+	# Configure /etc/samba/smb.conf
+cat > $SMB_CONF <<-EOFL
+		[global]
+		workgroup = $DOMAIN_SHORT
+		client signing = yes
+		client use spnego = yes
+		kerberos method = secrets and keytab
+		password server = $ADDC_FQDN
+		realm = $DOMAIN_NAME
+		security = ads
 EOFL
-echo "$ cat $SMB_CONF"
-cat $SMB_CONF
+		echo "$ cat $SMB_CONF"
+		cat $SMB_CONF
 
-# Fetch TGT
-if ! KRB5_TRACE=/dev/stdout kinit -V Administrator@${DOMAIN_NAME} <<< ${PASSWD}; then
-	echo "AD Integration Failed, cannot get TGT principal of Administrator@${DOMAIN_NAME} during kinit"
-	exit 1;
-fi
+	if ! KRB5_TRACE=/dev/stdout kinit -V Administrator@${DOMAIN_NAME} <<< ${PASSWD}; then
+		echo "AD Integration Failed, cannot get TGT principal of Administrator@${DOMAIN_NAME} during kinit"
+		return 1
+	fi
 
-if ! net ads join -k; then
-	echo "AD Integration Failed, cannot join AD Domain by 'net ads'"
-	exit 1
-fi
+	if ! net ads join -k; then
+		echo "AD Integration Failed, cannot join AD Domain by 'net ads'"
+		return 1
+	fi
+}
 
+ad_realm_join() {
+	# Cleanup at first
+	realm leave ${DOMAIN_NAME}
+	realm join --user=Administrator ${DOMAIN_NAME} <<< ${PASSWD}
+	if [[ $? -ne 0 ]]; then
+		echo "AD Integration Failed when using 'realm join'"
+		exit 1
+	fi
+
+}
+
+ad_net_join
 if [[ "$CONF_KRB" = "yes" ]]; then
 	config_krb Administrator ${PASSWD}
+fi
+
+if [[ $? -ne 0 ]]; then
+	echo "net ads join failed, trying realm join"
+	ad_realm_join
 fi
 
 if [[ "$CONF_IDMAP" = "yes" ]]; then
