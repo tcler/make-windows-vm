@@ -13,52 +13,6 @@ RESOLV_CONF=/etc/resolv.conf
 HOSTNAME_CONF=/etc/hostname
 SSSD_CONF=/etc/sssd/sssd.conf
 
-# Specify Standard KRB5 Configuration File
-krbConfTemp="[logging]
-  default = FILE:/var/log/krb5libs.log
-
-[libdefaults]
-  default_realm = EXAMPLE.COM
-  dns_lookup_realm = true
-  dns_lookup_kdc = true
-  ticket_lifetime = 24h
-  renew_lifetime = 7d
-  forwardable = true
-  rdns = false
-
-[realms]
-  EXAMPLE.COM = {
-    kdc = kerberos.example.com
-    admin_server = kerberos.example.com
-    default_domain = kerberos.example.com
-  }
-
-[domain_realm]
-  .example.com = .EXAMPLE.COM
-  example.com = EXAMPLE.COM"
-
-# Specify Standard SSSD ad_provider Configuration File
-sssd_ad_providerConfTemp="[nss]
-  fallback_homedir = /home/%u
-  shell_fallback = /bin/sh
-  allowed_shells = /bin/sh,/bin/rbash,/bin/bash
-  vetoed_shells = /bin/ksh
-
-[sssd]
-  config_file_version = 2
-  domains = example.com
-  services = nss, pam, pac
-
-[domain/example.com]
-  id_provider = ad
-  auth_provider = ad
-  chpass_provider = ad
-  access_provider = ad
-  cache_credentials = true
-  override_homedir = /home/%d/%u
-  default_shell = /bin/bash
-  use_fully_qualified_names = True"
-
 # ==============================================================================
 # Functions
 # ==============================================================================
@@ -68,11 +22,12 @@ gen_netbios_name() {
 }
 
 config_krb() {
-	local admin=$1
-	local pass=$2
+	local admin="$1"
+	local pass="$2"
+	local smb_conf="$3"
 
 	for principal in NFS HOST ROOT; do
-		if ! net ads keytab add $principal -U ${admin}%${pass}; then
+		if ! net -s "$smb_conf" ads keytab add $principal -U ${admin}%${pass}; then
 			echo "Configure Secure NFS Client Failed, cannot add principal: $principal"
 			exit 1
 		fi
@@ -89,7 +44,30 @@ config_idmap() {
 
 	# Configure /etc/sssd/sssd.conf
 	authconfig --update --enablesssd --enablesssdauth --enablemkhomedir
-	echo "$sssd_ad_providerConfTemp" >$SSSD_CONF
+	# Specify Standard SSSD ad_provider Configuration File
+	cat <<-EOF >$SSSD_CONF
+	[nss]
+	  fallback_homedir = /home/%u
+	  shell_fallback = /bin/sh
+	  allowed_shells = /bin/sh,/bin/rbash,/bin/bash
+	  vetoed_shells = /bin/ksh
+
+	[sssd]
+	  config_file_version = 2
+	  domains = example.com
+	  services = nss, pam, pac
+
+	[domain/example.com]
+	  id_provider = ad
+	  auth_provider = ad
+	  chpass_provider = ad
+	  access_provider = ad
+	  cache_credentials = true
+	  override_homedir = /home/%d/%u
+	  default_shell = /bin/bash
+	  use_fully_qualified_names = True
+	EOF
+
 	sed -r -i -e "/example.com/{s//$domain_name/g}" $SSSD_CONF
 	chmod 600 $SSSD_CONF
 	restorecon $SSSD_CONF
@@ -254,12 +232,32 @@ echo "$ cat $HOSTS_CONF"
 cat $HOSTS_CONF
 
 # Configure /etc/krb5.conf
-echo "$krbConfTemp" >$KRB_CONF
 REALM="$DOMAIN_NAME"
-krbKDC="$ADDC_FQDN"
-sed -r -i -e 's;^#+;;' -e "/EXAMPLE.COM/{s//$REALM/g}" -e "/kerberos.example.com/{s//$krbKDC/g}"   $KRB_CONF
-sed -r -i -e "/ (\.)?example.com/{s// \1${krbKDC#*.}/g}"                                           $KRB_CONF
-sed -r -i -e "/dns_lookup_realm/{s/false/true/g}" -e "/dns_lookup_kdc/{s/false/true/g}"            $KRB_CONF
+KDC="$ADDC_FQDN"
+cat <<-EOF >$KRB_CONF
+[logging]
+  default = FILE:/var/log/krb5libs.log
+
+[libdefaults]
+  default_realm = $REALM
+  dns_lookup_realm = true
+  dns_lookup_kdc = true
+  ticket_lifetime = 24h
+  renew_lifetime = 7d
+  forwardable = true
+  rdns = false
+
+[realms]
+  $REALM = {
+    kdc = $KDC
+    admin_server = $KDC
+    default_domain = $KDC
+  }
+
+[domain_realm]
+  .$KDC = .$REALM
+  $KDC = $REALM
+EOF
 
 if [ "$ENCRYPT" == "DES" ]; then
 	sed -i -e '/libdefaults/{s/$/\n  default_tgs_enctypes = arcfour-hmac-md5 rc4-hmac des-cbc-crc des-cbc-md5/}'  $KRB_CONF
@@ -279,52 +277,67 @@ fi
 echo "$ cat $KRB_CONF"
 cat $KRB_CONF
 
+SMB_CONF_TMP="[global]
+workgroup = $DOMAIN_SHORT
+client signing = yes
+client use spnego = yes
+kerberos method = secrets and keytab
+password server = $ADDC_FQDN
+realm = $DOMAIN_NAME
+security = ads
+"
 
 ad_net_join() {
-	# Configure /etc/samba/smb.conf
-cat > $SMB_CONF <<-EOFL
-		[global]
-		workgroup = $DOMAIN_SHORT
-		client signing = yes
-		client use spnego = yes
-		kerberos method = secrets and keytab
-		password server = $ADDC_FQDN
-		realm = $DOMAIN_NAME
-		security = ads
-EOFL
-		echo "$ cat $SMB_CONF"
-		cat $SMB_CONF
+	local domain="$1"
+	local passwd="$2"
 
-	if ! KRB5_TRACE=/dev/stdout kinit -V Administrator@${DOMAIN_NAME} <<< ${PASSWD}; then
-		echo "AD Integration Failed, cannot get TGT principal of Administrator@${DOMAIN_NAME} during kinit"
+	# Configure /etc/samba/smb.conf
+	echo "$SMB_CONF_TMP" > $SMB_CONF
+	echo "$ cat $SMB_CONF"
+	cat $SMB_CONF
+
+	if ! KRB5_TRACE=/dev/stdout kinit -V Administrator@"$domain" <<< "$passwd"; then
+		echo "AD Integration Failed, cannot get TGT principal of Administrator@"$domain" during kinit"
 		return 1
 	fi
 
-	if ! net ads join -k; then
+	if ! net ads join -k --no-dns-updates; then
 		echo "AD Integration Failed, cannot join AD Domain by 'net ads'"
 		return 1
 	fi
 }
 
 ad_realm_join() {
-	# Cleanup at first
-	realm leave ${DOMAIN_NAME}
-	realm join --user=Administrator ${DOMAIN_NAME} <<< ${PASSWD}
+	local domain="$1"
+	local passwd="$2"
+
+	realm join --user=Administrator "$domain" <<< "$passwd"
 	if [[ $? -ne 0 ]]; then
 		echo "AD Integration Failed when using 'realm join'"
-		exit 1
+		return 1
 	fi
-
+	# realmd creates a smb.conf only for the duration of joining
+	# Setup a permanent smb.conf post realmd join to be used in tests
+	SMB_CONF=/etc/samba/realmd-smb.conf
+	echo "$SMB_CONF_TMP" > $SMB_CONF
 }
 
-ad_net_join
-if [[ "$CONF_KRB" = "yes" ]]; then
-	config_krb Administrator ${PASSWD}
-fi
+ad_join() {
+	local domain="$1"
+	local passwd="$2"
 
-if [[ $? -ne 0 ]]; then
-	echo "net ads join failed, trying realm join"
-	ad_realm_join
+	#check whether realm command exists
+	if which realm >/dev/null; then
+		ad_realm_join $domain ${passwd}
+	else
+		ad_net_join $domain ${passwd}
+	fi
+}
+
+ad_join $DOMAIN_NAME ${PASSWD}
+
+if [[ "$CONF_KRB" = "yes" ]]; then
+	config_krb Administrator ${PASSWD} $SMB_CONF
 fi
 
 if [[ "$CONF_IDMAP" = "yes" ]]; then
