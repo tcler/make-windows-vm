@@ -21,84 +21,6 @@ gen_netbios_name() {
 	echo "${HOSTNAME:0:5}-${random:0:5}"
 }
 
-config_krb() {
-	local admin="$1"
-	local pass="$2"
-	local smb_conf="$3"
-
-	for principal in NFS HOST ROOT; do
-		if ! net -s "$smb_conf" ads keytab add $principal -U ${admin}%${pass}; then
-			echo "Configure Secure NFS Client Failed, cannot add principal: $principal"
-			exit 1
-		fi
-	done
-
-	if ! klist -e -k -t /etc/krb5.keytab; then
-		echo "Configure Secure NFS Client Failed, cannot read keytab file."
-		exit 1
-	fi
-}
-
-config_idmap() {
-	local domain_name=$1
-
-	# Configure /etc/sssd/sssd.conf
-	authconfig --update --enablesssd --enablesssdauth --enablemkhomedir
-	# Specify Standard SSSD ad_provider Configuration File
-	cat <<-EOF >$SSSD_CONF
-	[nss]
-	  fallback_homedir = /home/%u
-	  shell_fallback = /bin/sh
-	  allowed_shells = /bin/sh,/bin/rbash,/bin/bash
-	  vetoed_shells = /bin/ksh
-
-	[sssd]
-	  config_file_version = 2
-	  domains = example.com
-	  services = nss, pam, pac
-
-	[domain/example.com]
-	  id_provider = ad
-	  auth_provider = ad
-	  chpass_provider = ad
-	  access_provider = ad
-	  cache_credentials = true
-	  override_homedir = /home/%d/%u
-	  default_shell = /bin/bash
-	  use_fully_qualified_names = True
-	EOF
-
-	sed -r -i -e "/example.com/{s//$domain_name/g}" $SSSD_CONF
-	chmod 600 $SSSD_CONF
-	restorecon $SSSD_CONF
-	echo "$ cat $SSSD_CONF"
-	cat $SSSD_CONF
-
-	if ! service sssd restart; then
-		echo "SSSD service cannot load, please check $SSSD_CONF"
-		exit 1
-	fi
-
-	# Enable nfs idmapping
-	modprobe nfsd; modprobe nfs
-	echo "N"> /sys/module/nfs/parameters/nfs4_disable_idmapping
-	echo "N"> /sys/module/nfsd/parameters/nfs4_disable_idmapping
-	service rpcidmapd restart
-
-	for user in Administrator krbtgt; do
-		if ! getent passwd $user@${domain_name}  |grep ${domain_name}; then
-			echo "Configure NFSv4 IDMAP Client Failed, query user information failed for $user@${domain_name}"
-			exit 1
-		fi
-	done
-
-	for group in "Domain Admins" "Domain Users"; do
-		if ! getent group "$group"@${domain_name} |grep ${domain_name}; then
-			echo "Configure NFSv4 IDMAP Client Failed, query group information failed for Domain $group@${domain_name}"
-		fi
-	done
-}
-
 cleanup() {
 	local admin=$1
 	local pass=$2
@@ -138,7 +60,7 @@ ARGS=$(getopt -o hi:ce:p: \
 	--long cleanup \
 	--long enctype: \
 	--long password: \
-	--long config-krb \
+	--long setspn: \
 	--long config-idmap \
 	--long root-dc: \
 	-a -n "$PROG" -- "$@")
@@ -150,7 +72,7 @@ while true; do
 	-c|--cleanup) CLEANUP="yes"; shift 1;;
 	-e|--enctype) ENCRYPT="$2"; shift 2;;
 	-p|--password) PASSWD="$2"; shift 2;;
-	--config-krb) CONF_KRB="yes"; shift 1;;
+	--setspn) SPNs="$2"; shift 2;;
 	--config-idmap) CONF_IDMAP="yes"; shift 1;;
 	--root-dc) ROOT_DC="$2"; shift 2;;
 	--) shift; break;;
@@ -231,51 +153,57 @@ echo "$ADDC_IP $ADDC_NETBIOS $ADDC_FQDN" >> $HOSTS_CONF
 echo "$ cat $HOSTS_CONF"
 cat $HOSTS_CONF
 
-# Configure /etc/krb5.conf
-REALM="$DOMAIN_NAME"
-KDC="$ADDC_FQDN"
-cat <<-EOF >$KRB_CONF
-[logging]
-  default = FILE:/var/log/krb5libs.log
+krb5_client_conf() {
+	local realm=$1
+	local kdc=$2
+	local encrypt=$3
 
-[libdefaults]
-  default_realm = $REALM
-  dns_lookup_realm = true
-  dns_lookup_kdc = true
-  ticket_lifetime = 24h
-  renew_lifetime = 7d
-  forwardable = true
-  rdns = false
+	# Configure /etc/krb5.conf
+	cat <<-EOF >$KRB_CONF
+	[logging]
+	  default = FILE:/var/log/krb5libs.log
 
-[realms]
-  $REALM = {
-    kdc = $KDC
-    admin_server = $KDC
-    default_domain = $KDC
-  }
+	[libdefaults]
+	  default_realm = $realm
+	  dns_lookup_realm = true
+	  dns_lookup_kdc = true
+	  ticket_lifetime = 24h
+	  renew_lifetime = 7d
+	  forwardable = true
+	  rdns = false
 
-[domain_realm]
-  .$KDC = .$REALM
-  $KDC = $REALM
-EOF
+	[realms]
+	  $realm = {
+	    kdc = $kdc
+	    admin_server = $kdc
+	    default_domain = $kdc
+	  }
 
-if [ "$ENCRYPT" == "DES" ]; then
-	sed -i -e '/libdefaults/{s/$/\n  default_tgs_enctypes = arcfour-hmac-md5 rc4-hmac des-cbc-crc des-cbc-md5/}'  $KRB_CONF
-	sed -i -e '/libdefaults/{s/$/\n  default_tkt_enctypes = arcfour-hmac-md5 rc4-hmac des-cbc-crc des-cbc-md5/}'  $KRB_CONF
-	sed -i -e '/libdefaults/{s/$/\n  permitted_enctypes = arcfour-hmac-md5 rc4-hmac des-cbc-crc des-cbc-md5/}'    $KRB_CONF
-	sed -i -e '/libdefaults/{s/$/\n  allow_weak_crypto = true/}' $KRB_CONF
-	echo "{Info} Kerberos will choose from DES enctypes to select one for TGT and TGS procedures"
-elif [ "$ENCRYPT" == "AES" ]; then
-	sed -i -e '/libdefaults/{s/$/\n  default_tgs_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96/}'  $KRB_CONF
-	sed -i -e '/libdefaults/{s/$/\n  default_tkt_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96/}'  $KRB_CONF
-	sed -i -e '/libdefaults/{s/$/\n  permitted_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96/}'    $KRB_CONF
-	sed -i -e '/libdefaults/{s/$/\n  allow_weak_crypto = true/}' $KRB_CONF
-	echo "{Info} Kerberos will choose from AES enctypes to select one for TGT and TGS procedures"
-else
-	echo "{Info} Kerberos will choose a valid enctype from default enctypes (order: AES 256 > AES 128 > DES) for TGT and TGS procedures"
-fi
-echo "$ cat $KRB_CONF"
-cat $KRB_CONF
+	[domain_realm]
+	  .$kdc = .$realm
+	  $kdc = $realm
+	EOF
+
+	if [ "$ENCRYPT" == "DES" ]; then
+		sed -i -e '/libdefaults/{s/$/\n  default_tgs_enctypes = arcfour-hmac-md5 rc4-hmac des-cbc-crc des-cbc-md5/}'  $KRB_CONF
+		sed -i -e '/libdefaults/{s/$/\n  default_tkt_enctypes = arcfour-hmac-md5 rc4-hmac des-cbc-crc des-cbc-md5/}'  $KRB_CONF
+		sed -i -e '/libdefaults/{s/$/\n  permitted_enctypes = arcfour-hmac-md5 rc4-hmac des-cbc-crc des-cbc-md5/}'    $KRB_CONF
+		sed -i -e '/libdefaults/{s/$/\n  allow_weak_crypto = true/}' $KRB_CONF
+		echo "{Info} Kerberos will choose from DES enctypes to select one for TGT and TGS procedures"
+	elif [ "$ENCRYPT" == "AES" ]; then
+		sed -i -e '/libdefaults/{s/$/\n  default_tgs_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96/}'  $KRB_CONF
+		sed -i -e '/libdefaults/{s/$/\n  default_tkt_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96/}'  $KRB_CONF
+		sed -i -e '/libdefaults/{s/$/\n  permitted_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96/}'    $KRB_CONF
+		sed -i -e '/libdefaults/{s/$/\n  allow_weak_crypto = true/}' $KRB_CONF
+		echo "{Info} Kerberos will choose from AES enctypes to select one for TGT and TGS procedures"
+	else
+		echo "{Info} Kerberos will choose a valid enctype from default enctypes (order: AES 256 > AES 128 > DES) for TGT and TGS procedures"
+	fi
+	echo "$ cat $KRB_CONF"
+	cat $KRB_CONF
+
+}
+krb5_client_conf $DOMAIN_NAME $ADDC_FQDN $ENCRYPT
 
 SMB_CONF_TMP="[global]
 workgroup = $DOMAIN_SHORT
@@ -284,8 +212,7 @@ client use spnego = yes
 kerberos method = secrets and keytab
 password server = $ADDC_FQDN
 realm = $DOMAIN_NAME
-security = ads
-"
+security = ads"
 
 ad_net_join() {
 	local domain="$1"
@@ -336,10 +263,86 @@ ad_join() {
 
 ad_join $DOMAIN_NAME ${PASSWD}
 
-if [[ "$CONF_KRB" = "yes" ]]; then
-	config_krb Administrator ${PASSWD} $SMB_CONF
+set_spn() {
+	local admin="$1"; shift
+	local pass="$1"; shift
+	local smb_conf="$1"; shift
+
+	for principal; do
+		if ! net -s "$smb_conf" ads keytab add $principal -U ${admin}%${pass}; then
+			echo "Configure Secure NFS Client Failed, cannot add principal: $principal"
+			exit 1
+		fi
+	done
+
+	if ! klist -e -k -t /etc/krb5.keytab; then
+		echo "Configure Secure NFS Client Failed, cannot read keytab file."
+		exit 1
+	fi
+}
+if [[ -n "${SPNs// /}" ]]; then
+	set_spn Administrator ${PASSWD} $SMB_CONF  $SPNs
 fi
 
+config_idmap() {
+	local domain_name=$1
+
+	# Configure /etc/sssd/sssd.conf
+	authconfig --update --enablesssd --enablesssdauth --enablemkhomedir
+	# Specify Standard SSSD ad_provider Configuration File
+	cat <<-EOF >$SSSD_CONF
+	[nss]
+	  fallback_homedir = /home/%u
+	  shell_fallback = /bin/sh
+	  allowed_shells = /bin/sh,/bin/rbash,/bin/bash
+	  vetoed_shells = /bin/ksh
+
+	[sssd]
+	  config_file_version = 2
+	  domains = example.com
+	  services = nss, pam, pac
+
+	[domain/example.com]
+	  id_provider = ad
+	  auth_provider = ad
+	  chpass_provider = ad
+	  access_provider = ad
+	  cache_credentials = true
+	  override_homedir = /home/%d/%u
+	  default_shell = /bin/bash
+	  use_fully_qualified_names = True
+	EOF
+
+	sed -r -i -e "/example.com/{s//$domain_name/g}" $SSSD_CONF
+	chmod 600 $SSSD_CONF
+	restorecon $SSSD_CONF
+	echo "$ cat $SSSD_CONF"
+	cat $SSSD_CONF
+
+	if ! service sssd restart; then
+		echo "SSSD service cannot load, please check $SSSD_CONF"
+		exit 1
+	fi
+
+	# Enable nfs idmapping
+	modprobe nfsd; modprobe nfs
+	echo "N"> /sys/module/nfs/parameters/nfs4_disable_idmapping
+	echo "N"> /sys/module/nfsd/parameters/nfs4_disable_idmapping
+	service rpcidmapd restart
+
+	for user in Administrator krbtgt; do
+		if ! getent passwd $user@${domain_name}  |grep ${domain_name}; then
+			echo "Configure NFSv4 IDMAP Client Failed, query user information failed for $user@${domain_name}"
+			exit 1
+		fi
+	done
+
+	for group in "Domain Admins" "Domain Users"; do
+		if ! getent group "$group"@${domain_name} |grep ${domain_name}; then
+			echo "Configure NFSv4 IDMAP Client Failed, query group information failed for Domain $group@${domain_name}"
+		fi
+	done
+}
 if [[ "$CONF_IDMAP" = "yes" ]]; then
 	config_idmap $DOMAIN_NAME
 fi
