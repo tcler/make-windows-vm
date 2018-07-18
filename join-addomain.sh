@@ -243,6 +243,7 @@ ad_realm_join() {
 		echo "AD Integration Failed when using 'realm join'"
 		return 1
 	fi
+
 	# realmd creates a smb.conf only for the duration of joining
 	# Setup a permanent smb.conf post realmd join to be used in tests
 	SMB_CONF=/etc/samba/realmd-smb.conf
@@ -254,9 +255,9 @@ ad_join() {
 	local passwd="$2"
 
 	#check whether realm command exists
-	if which realm >/dev/null; then
-		ad_realm_join $domain ${passwd}
-	else
+	which realm >/dev/null && ad_realm_join $domain ${passwd}
+
+	if [[ $? -ne 0 ]]; then
 		ad_net_join $domain ${passwd}
 	fi
 }
