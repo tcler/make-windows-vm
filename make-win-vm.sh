@@ -21,6 +21,14 @@ get_default_if() {
 	echo $iface
 }
 
+restart_network() {
+	if [ -f /etc/rc.d/init.d/network ]; then
+		service network restart >/dev/null
+	else
+		systemctl restart NetworkManager >/dev/null
+	fi
+}
+
 create_bridge() {
 	local brname=${1:-br0}
 	local net_script_path=/etc/sysconfig/network-scripts
@@ -31,7 +39,7 @@ create_bridge() {
 		grep -q "^ *BRIDGE=$brname" $net_script_path/ifcfg-$dev || {
 			echo "[${FUNCNAME[0]}] br addif($brname $dev) and restart network service ..."
 			echo "BRIDGE=$brname" >>$net_script_path/ifcfg-$dev
-			service network restart >/dev/null
+			restart_network
 		}
 	else
 		local iface=$(get_default_if)
@@ -42,7 +50,7 @@ create_bridge() {
 			echo "BRIDGE=$brname" >>$net_script_path/ifcfg-$iface
 		}
 		echo "[${FUNCNAME[0]}] restart network service ..."
-		service network restart >/dev/null
+		restart_network
 	fi
 	echo
 	brctl show $brname
@@ -56,7 +64,7 @@ br_delif() {
 		local dev=$(get_default_if dev)
 		echo "[${FUNCNAME[0]}] br delif($br $dev) and restart network service ..."
 		sed -i "/BRIDGE=$br *$/d" $net_script_path/ifcfg-$dev
-		service network restart >/dev/null
+		restart_network
 	fi
 }
 
@@ -375,8 +383,8 @@ echo -e "\n{INFO} virt-install ..."
 virt-install --connect=qemu:///system --hvm --accelerate --cpu host \
 	--name "$VM_NAME" --ram=${VM_RAM:-2048} --vcpu=${VM_CPUS:-2} \
 	--os-variant ${VM_OS_VARIANT} \
-	--disk path=$WIN_ISO,device=cdrom \
-	--disk path=$VM_IMAGE,bus=ide,size=$VM_DISKSIZE,format=qcow2,cache=none \
+	--cdrom $WIN_ISO \
+	--disk path=$VM_IMAGE,size=$VM_DISKSIZE,format=qcow2,cache=none \
 	--disk path=$ANSF_MEDIA_PATH,device=$ANSF_MEDIA_TYPE \
 	--serial file,path=$SERIAL_PATH --serial pty \
 	--network $VM_NET_OPT_EXTERNAL --network $VM_NET_OPT_INTERNAL \
