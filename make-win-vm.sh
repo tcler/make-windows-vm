@@ -5,7 +5,7 @@ PROG=${0##*/}
 
 is_bridge() {
 	local ifname=$1
-	[[ -z "$ifname" || -n "$(brctl show $ifname 2>&1 >/dev/null)" ]] && return 1
+	[[ -z "$ifname" || -n "$(ip link show $ifname type bridge 2>&1 >/dev/null)" ]] && return 1
 	return 0
 }
 
@@ -15,56 +15,41 @@ get_default_if() {
 
 	iface=$(ip route get 1 | awk '/^[0-9]/{print $5}')
 	if [[ -n "$dev" ]] && is_bridge $iface; then
-		brctl show $iface | awk 'NR==2 {print $4}'
+		ip link show type bridge_slave |grep "master $iface" |cut -d ":" -f 2 |sed 's/ //g'
 		return 0
 	fi
 	echo $iface
 }
 
-restart_network() {
-	if [ -f /etc/rc.d/init.d/network ]; then
-		service network restart >/dev/null
-	else
-		systemctl restart NetworkManager >/dev/null
-	fi
-}
-
 create_bridge() {
 	local brname=${1:-br0}
-	local net_script_path=/etc/sysconfig/network-scripts
 
 	if is_bridge $brname; then
 		local dev=$(get_default_if dev)
 		echo "[${FUNCNAME[0]}] bridge $brname exist"
-		grep -q "^ *BRIDGE=$brname" $net_script_path/ifcfg-$dev || {
-			echo "[${FUNCNAME[0]}] br addif($brname $dev) and restart network service ..."
-			echo "BRIDGE=$brname" >>$net_script_path/ifcfg-$dev
-			restart_network
+		ip link show $brname type bridge |grep UP || {
+			echo "Up bridge $brname..."
+			dhclient $brname
 		}
 	else
 		local iface=$(get_default_if)
 		echo "[${FUNCNAME[0]}] creating bridge($brname $iface) ..."
-		echo -e "TYPE=Bridge\nBOOTPROTO=dhcp\nDEVICE=$brname\nONBOOT=yes" \
-			> $net_script_path/ifcfg-$brname
-		grep -q "^ *BRIDGE=$brname" $net_script_path/ifcfg-$iface || {
-			echo "BRIDGE=$brname" >>$net_script_path/ifcfg-$iface
-		}
-		echo "[${FUNCNAME[0]}] restart network service ..."
-		restart_network
+		ip link add $brname type bridge
+		ip link set $iface master $brname
+		dhclient $brname
 	fi
 	echo
-	brctl show $brname
+	ip link show $brname type bridge
 }
 
 br_delif() {
-	local net_script_path=/etc/sysconfig/network-scripts
 	local br=$(get_default_if)
 
 	if is_bridge $br; then
 		local dev=$(get_default_if dev)
-		echo "[${FUNCNAME[0]}] br delif($br $dev) and restart network service ..."
-		sed -i "/BRIDGE=$br *$/d" $net_script_path/ifcfg-$dev
-		restart_network
+		echo "[${FUNCNAME[0]}] br delif...$dev"
+		ip link delete $br type bridge
+		dhclient $dev
 	fi
 }
 
