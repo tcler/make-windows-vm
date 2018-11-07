@@ -282,6 +282,11 @@ VIRTHOST=$(hostname -f)
 VNC_PORT=${VNC_PORT:-7788}
 mkdir -p $VM_IMG_DIR
 chcon --reference=$DEFAULT_VM_IMG_DIR $VM_IMG_DIR
+{ #for RHEL-6 "ERROR  Format cannot be specified for unmanaged storage."
+  virsh pool-define-as --name extpool --type dir --target $VM_IMG_DIR
+  virsh pool-start extpool
+}
+
 
 # =======================================================================
 # Windows Preparation
