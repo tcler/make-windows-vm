@@ -15,7 +15,12 @@ get_default_if() {
 
 	iface=$(ip route get 1 | awk '/^[0-9]/{print $5}')
 	if [[ -n "$dev" ]] && is_bridge $iface; then
-		ls /sys/class/net/$iface/brif | head -n 1 #fix me
+		# ls /sys/class/net/$iface/brif
+		if command -v brctl; then
+			brctl show $iface | awk 'NR==2 {print $4}'
+		else
+			ip link show type bridge_slave | awk -F'[ :]+' '/master '$iface' state UP/{print $2}' | head -n1
+		fi
 		return 0
 	fi
 	echo $iface
