@@ -7,6 +7,10 @@
 
  Ref: https://docs.microsoft.com/en-us/windows-hardware/manufacture/desktop/automate-windows-setup
 
+
+![example](https://github.com/tcler/bkr-client-improved/blob/master/img/reserve-windows-sample.png)
+
+
 ## Files layout:
 ```
 make-windows-vm/
