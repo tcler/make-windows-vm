@@ -127,6 +127,7 @@ switch($Stage) {
 		mkdir $cifsPath
 		New-SmbShare -Name $cifsShareName -Path $cifsPath -Description "for cifs share test 0_o"
 		Grant-SmbShareAccess -Name $cifsShareName -AccountName "Everyone" -AccessRight Full -Force
+		Install-WindowsFeature -Name FS-Resource-Manager -IncludeManagementTools
 		New-FsrmQuota -Path $cifsPath -Description "limit usage to 20 GB." -Size 20GB
 		Get-SmbShareAccess -Name $cifsShareName
 
