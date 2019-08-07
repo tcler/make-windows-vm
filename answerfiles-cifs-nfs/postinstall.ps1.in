@@ -115,6 +115,8 @@ switch($Stage) {
 		Set-NfsShare -Name $nfsShareName -EnableUnmappedAccess $True
 		nfsadmin server stop
 		nfsadmin server start
+		echo $null >> $nfsPath\file
+		New-Item -ItemType SymbolicLink -Path "$nfsPath\file" -Target "$nfsPath\link"
 
 		# Config CIFS server
 		Out-Host "`n==> Setup CIFS Server"
@@ -130,6 +132,8 @@ switch($Stage) {
 		Install-WindowsFeature -Name FS-Resource-Manager -IncludeManagementTools
 		New-FsrmQuota -Path $cifsPath -Description "limit usage to 20 GB." -Size 20GB
 		Get-SmbShareAccess -Name $cifsShareName
+		echo $null >> $cifsPath\file
+		New-Item -ItemType SymbolicLink -Path "$cifsPath\file" -Target "$cifsPath\link"
 
 		# for login without passwd from client
 		net user guest /active:yes
