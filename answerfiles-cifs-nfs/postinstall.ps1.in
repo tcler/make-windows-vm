@@ -116,7 +116,7 @@ switch($Stage) {
 		nfsadmin server stop
 		nfsadmin server start
 		echo $null >> $nfsPath\file
-		New-Item -ItemType SymbolicLink -Path "$nfsPath\file" -Target "$nfsPath\link"
+		New-Item -ItemType SymbolicLink -Path "$nfsPath\link" -Target "$nfsPath\file"
 
 		# Config CIFS server
 		Out-Host "`n==> Setup CIFS Server"
@@ -133,7 +133,7 @@ switch($Stage) {
 		New-FsrmQuota -Path $cifsPath -Description "limit usage to 20 GB." -Size 20GB
 		Get-SmbShareAccess -Name $cifsShareName
 		echo $null >> $cifsPath\file
-		New-Item -ItemType SymbolicLink -Path "$cifsPath\file" -Target "$cifsPath\link"
+		New-Item -ItemType SymbolicLink -Path "$cifsPath\link" -Target "$cifsPath\file"
 
 		# for login without passwd from client
 		net user guest /active:yes
