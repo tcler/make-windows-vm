@@ -117,6 +117,7 @@ switch($Stage) {
 		nfsadmin server start
 		echo $null >> $nfsPath\file
 		New-Item -ItemType SymbolicLink -Path "$nfsPath\link" -Target "$nfsPath\file"
+		New-Item -ItemType SymbolicLink -Path "$nfsPath\link2" -Target "file"
 
 		# Config CIFS server
 		Out-Host "`n==> Setup CIFS Server"
@@ -134,6 +135,7 @@ switch($Stage) {
 		Get-SmbShareAccess -Name $cifsShareName
 		echo $null >> $cifsPath\file
 		New-Item -ItemType SymbolicLink -Path "$cifsPath\link" -Target "$cifsPath\file"
+		New-Item -ItemType SymbolicLink -Path "$cifsPath\link2" -Target "file"
 
 		# for login without passwd from client
 		net user guest /active:yes
