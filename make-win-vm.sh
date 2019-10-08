@@ -229,7 +229,7 @@ while true; do
 	--disk-size) VM_DISKSIZE="$2"; shift 2;;
 	--os-variant) VM_OS_VARIANT="$2"; shift 2;;
 	-t|--ans-file-media-type) ANSF_MEDIA_TYPE="$2"; shift 2;;
-	-b|--bridge) MacvTap=bridge; shift 1;; 
+	-b|--bridge) NetMode=bridge; shift 1;;
 	--timeout) VM_TIMEOUT="$2"; shift 2;;
 	--vncport) VNC_PORT="$2"; shift 2;;
 	--check-ad) CHECK_AD="yes"; shift 1;;
@@ -319,14 +319,15 @@ service virtlogd restart
 }
 
 # VM network parameters
-MacvTap=${MacvTap:-vepa}
+NetMode=${NetMode:-macvtap}
+[[ "$NetMode" = macvtap ]] && MacvtapMode=vepa
 VM_EXT_MAC=$(gen_virt_mac 01)
 BR_NAME=br0
-echo -e "\n{INFO} vm nic for reach outside network(mac: $VM_EXT_MAC) (MacvTap:$MacvTap) ..."
-if [[ "$MacvTap" = vepa ]]; then
+echo -e "\n{INFO} vm nic for reach outside network(mac: $VM_EXT_MAC) (NetMode:$NetMode) ..."
+if [[ "$NetMode" = macvtap ]]; then
 	br_delif
 	DEFAULT_NIC=$(get_default_if dev)
-	VM_NET_OPT_EXTERNAL="type=direct,source=$DEFAULT_NIC,source_mode=vepa,mac=$VM_EXT_MAC"
+	VM_NET_OPT_EXTERNAL="type=direct,source=$DEFAULT_NIC,source_mode=$MacvtapMode,mac=$VM_EXT_MAC"
 else
 	create_bridge $BR_NAME
 	VM_NET_OPT_EXTERNAL="bridge=$BR_NAME,model=rtl8139,mac=$VM_EXT_MAC"
