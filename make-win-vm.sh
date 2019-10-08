@@ -10,11 +10,11 @@ is_bridge() {
 }
 
 get_default_if() {
-	local dev=$1
+	local notbr=$1  #indicate get real NIC not bridge
 	local iface=
 
 	iface=$(ip route get 1 | awk '/^[0-9]/{print $5}')
-	if [[ -n "$dev" ]] && is_bridge $iface; then
+	if [[ -n "$notbr" ]] && is_bridge $iface; then
 		# ls /sys/class/net/$iface/brif
 		if command -v brctl; then
 			brctl show $iface | awk 'NR==2 {print $4}'
@@ -60,7 +60,7 @@ create_bridge() {
 	local brname=${1:-br0}
 
 	if is_bridge $brname; then
-		local iface=$(get_default_if iface)
+		local iface=$(get_default_if notbr)
 		echo "[${FUNCNAME[0]}] bridge $brname exist"
 		add_if_to_bridge $iface $brname
 	else
@@ -77,7 +77,7 @@ br_delif() {
 	local br=$(get_default_if)
 
 	if is_bridge $br; then
-		local dev=$(get_default_if dev)
+		local dev=$(get_default_if notbr)
 		if [[ -f /etc/init.d/network ]]; then
 			echo "[${FUNCNAME[0]}] remove if from br($dev $br) and restart network service ..."
 			sed -i "/BRIDGE=$br *$/d" $net_script_path/ifcfg-$dev
