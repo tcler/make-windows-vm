@@ -311,8 +311,8 @@ if [[ "$OVERWRITE" = "yes" ]]; then
 	virsh destroy $VM_NAME
 fi
 
-service libvirtd restart
-service virtlogd restart
+service libvirtd start
+service virtlogd start
 { #for RHEL-6 "ERROR  Format cannot be specified for unmanaged storage."
   virsh pool-define-as --name extpool --type dir --target $VM_IMG_DIR
   virsh pool-start extpool
