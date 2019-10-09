@@ -307,8 +307,8 @@ NETBIOS_NAME=$(echo ${DOMAIN//./} | tr '[a-z]' '[A-Z]')
 # KVM Preparation
 # =======================================================================
 if [[ "$OVERWRITE" = "yes" ]]; then
-	virsh undefine $VM_NAME
 	virsh destroy $VM_NAME
+	virsh undefine $VM_NAME --remove-all-storage
 fi
 
 service libvirtd start
