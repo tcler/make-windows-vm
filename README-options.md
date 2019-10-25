@@ -22,7 +22,7 @@
 | --parent-domain <>           |                     | Conditionally | Mandatory when using answerfiles-addsdomain/ |
 | --parent-ip <>               |                     | Conditionally | Ditto                                        |
 | --product-key <>             |                     | Conditionally | Mandatory when not using evaluation versions |
-| -p, --password <>            | Sesame,0pen         | No            |                                              |
+| -p, --password <>            | Sesame~0pen         | No            |                                              |
 | --ram <>                     | 2048                | No            |                                              |
 | -t, --ans-file-media-type <> | floppy              | No            |                                              |
 | --timeout <>                 | 60                  | No            |                                              |
