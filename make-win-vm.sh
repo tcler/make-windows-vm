@@ -293,6 +293,7 @@ chcon --reference=$DEFAULT_VM_IMG_DIR $VM_IMG_DIR
 # Windows Preparation
 # =======================================================================
 WIM_IMAGE_INDEX=${WIM_IMAGE_INDEX:-4}
+[[ "$VM_OS_VARIANT" = win10 ]] && WIM_IMAGE_INDEX=1
 GUEST_HOSTNAME=${GUEST_HOSTNAME:-$VM_NAME}
 DOMAIN=${DOMAIN:-win.com}
 ADMINUSER=${ADMINUSER:-Administrator}
@@ -409,7 +410,6 @@ esac
 # =======================================================================
 echo -e "\n{INFO} virt-install ..."
 \rm -f $VM_IMAGE
-#virt-install --connect=qemu:///system --hvm --accelerate --cpu host,-invtsc \
 virt-install --connect=qemu:///system --hvm --accelerate --cpu host \
 	--name "$VM_NAME" --ram=${VM_RAM:-2048} --vcpu=${VM_CPUS:-2} \
 	--os-variant ${VM_OS_VARIANT} \
