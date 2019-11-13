@@ -117,6 +117,11 @@ so no extra operations are needed).
 
 
 ## Tips
+### [-1] About Windows 10
+Ref: https://community.spiceworks.com/topic/2118439-windows-10-1709-unattend-xml-let-s-start-with-region?page=1#entry-7607351
+
+Now we can not install Windows 10 with unattend.xml.
+
 ### [0] About libguestfs ntfs and libguestfs-winsupport
 Ref: http://libguestfs.org/guestfs-faq.1.html
 
