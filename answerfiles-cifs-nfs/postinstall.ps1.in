@@ -121,7 +121,7 @@ switch($Stage) {
 
 		# Config CIFS server
 		Out-Host "`n==> Setup CIFS Server"
-		Enable-WindowsOptionalFeature -Online -FeatureName smb1protocol
+		Enable-WindowsOptionalFeature -Online -FeatureName smb1protocol -NoRestart
 		Set-SmbServerConfiguration -EnableSMB2Protocol $true -Force
 		Import-Module SmbShare
 		Import-Module SmbWitness
