@@ -97,8 +97,8 @@ libguestfs-tools-c openldap-clients dos2unix unix2dos glibc-common libguestfs-wi
 ```
 ##### Setup Windows as NFS/CIFS server:
 ```
-./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2-Evaluation.iso \
-    --os-variant win2k12r2 --vm-name fs --domain nfs.test -p ~Ocgxyz \
+./make-win-vm.sh --image /var/lib/libvirt/images/Win2019-Evaluation.iso \
+    --os-variant win2k19 --vm-name fs --domain nfs.test -p ~Ocgxyz \
     --cpus 2 --ram 2048 --disk-size 60 --vncport 7799  ./answerfiles-cifs-nfs/* --enable-kdc
 ```
 
@@ -115,12 +115,15 @@ so no extra operations are needed).
 
 4. If the password of windows is too weak, it will fail to deploy windows.
 
+5. all examples above test pass on Windows Server 2012,2012r2,2016,2019; and Windows 10 pass on basic ./answerfiles/\*
+
 
 ## Tips
-### [-1] About Windows 10
-Ref: https://community.spiceworks.com/topic/2118439-windows-10-1709-unattend-xml-let-s-start-with-region?page=1#entry-7607351
+### [-1] About Windows iso
 
-Now we can not install Windows 10 with unattend.xml.
+Note: our example autounattend.xml just works fine on en-us version's ISO file
+
+so please select language en-us while you download evaluate iso from Microsoft site.
 
 ### [0] About libguestfs ntfs and libguestfs-winsupport
 Ref: http://libguestfs.org/guestfs-faq.1.html
