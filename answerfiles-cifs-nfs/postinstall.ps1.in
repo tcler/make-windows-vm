@@ -106,7 +106,13 @@ switch($Stage) {
 
 		# Config NFS server
 		Out-Host "`n==> Setup NFS Server"
-		Add-WindowsFeature FS-NFS-Service
+		if (Get-Command Add-WindowsFeature -errorAction SilentlyContinue) {
+			Add-WindowsFeature FS-NFS-Service
+		}
+		if (Get-Command Add-WindowsCapability -errorAction SilentlyContinue) {
+			Set-ExecutionPolicy unrestricted
+			Add-WindowsCapability -Online -Name FS-NFS-Service
+		}
 		Import-Module NFS
 		$nfsPath = "C:\nfstest"
 		$nfsShareName = "nfstest"
