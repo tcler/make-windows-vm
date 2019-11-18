@@ -406,6 +406,11 @@ case "$ANSF_MEDIA_TYPE" in
 esac
 \rm -rf $media_mp
 
+echo -e "\n{INFO} make extra test disk ..."
+qemu-img create -f raw $EXTRA_DISK 5G
+mkfs.vfat $EXTRA_DISK
+qemu-img convert -f raw -O qcow2 $EXTRA_DISK $EXTRA_DISK
+
 # =======================================================================
 # Execute virt-install command with the parameters given
 # =======================================================================
@@ -417,7 +422,7 @@ virt-install --connect=qemu:///system --hvm --accelerate --cpu host \
 	--cdrom $WIN_ISO \
 	--disk path=$VM_IMAGE,size=$VM_DISKSIZE,format=qcow2,cache=none \
 	--disk path=$ANSF_MEDIA_PATH,device=$ANSF_MEDIA_TYPE \
-	--disk path=$EXTRA_DISK,size=5 \
+	--disk path=$EXTRA_DISK,size=5,bus=sata \
 	--serial file,path=$SERIAL_PATH --serial pty \
 	--network $VM_NET_OPT_EXTERNAL --network $VM_NET_OPT_INTERNAL \
 	--vnc --vnclisten 0.0.0.0 --vncport ${VNC_PORT} || { echo error $? from virt-install ; exit 1 ; }
