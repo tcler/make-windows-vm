@@ -344,6 +344,7 @@ ANSF_MEDIA_TYPE=${ANSF_MEDIA_TYPE:-floppy}
 ANSF_CDROM=${ANSF_CDROM:-$VM_IMG_DIR/$VM_NAME-ansf-cdrom.iso}
 ANSF_FLOPPY=${ANSF_FLOPPY:-$VM_IMG_DIR/$VM_NAME-ansf-floppy.vfd}
 VM_IMAGE=${VM_IMAGE:-$VM_IMG_DIR/$VM_NAME.qcow2}
+EXTRA_DISK=$VM_IMG_DIR/cifstest.qcow2
 SERIAL_PATH=/tmp/serial-$(date +%Y%m%d%H%M%S).$$
 
 # ====================================================================
@@ -416,6 +417,7 @@ virt-install --connect=qemu:///system --hvm --accelerate --cpu host \
 	--cdrom $WIN_ISO \
 	--disk path=$VM_IMAGE,size=$VM_DISKSIZE,format=qcow2,cache=none \
 	--disk path=$ANSF_MEDIA_PATH,device=$ANSF_MEDIA_TYPE \
+	--disk path=$EXTRA_DISK,size=5 \
 	--serial file,path=$SERIAL_PATH --serial pty \
 	--network $VM_NET_OPT_EXTERNAL --network $VM_NET_OPT_INTERNAL \
 	--vnc --vnclisten 0.0.0.0 --vncport ${VNC_PORT} || { echo error $? from virt-install ; exit 1 ; }
