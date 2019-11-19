@@ -182,7 +182,7 @@ Usage: $PROG [OPTION]...
 EOF
 }
 
-ARGS=$(getopt -o hu:p:t:b \
+ARGS=$(getopt -o hu:p:t:bf \
 	--long help \
 	--long image: \
 	--long wim-index: \
@@ -207,8 +207,9 @@ ARGS=$(getopt -o hu:p:t:b \
 	--long parent-domain: \
 	--long parent-ip: \
 	--long openssh: \
-	--long overwrite \
+	--long overwrite --long force\
 	--long user: \
+	--long xdisk \
 	-a -n "$PROG" -- "$@")
 eval set -- "$ARGS"
 while true; do
@@ -238,7 +239,8 @@ while true; do
 	--parent-domain) PARENT_DOMAIN="$2"; shift 2;;
 	--parent-ip) PARENT_IP="$2"; shift 2;;
 	--openssh) OpenSSHUrl="$2"; shift 2;;
-	--overwrite) OVERWRITE="yes"; shift 1;;
+	--overwrite|--force|-f) OVERWRITE="yes"; shift 1;;
+	--xdisk) XDISK="yes"; shift 1;;
 	--) shift; break;;
 	*) Usage; exit 1;; 
 	esac
@@ -346,8 +348,10 @@ ANSF_MEDIA_TYPE=${ANSF_MEDIA_TYPE:-floppy}
 ANSF_CDROM=$VM_PATH/$VM_NAME-ansf-cdrom.iso
 ANSF_FLOPPY=$VM_PATH/$VM_NAME-ansf-floppy.vfd
 VM_IMAGE=$VM_PATH/$VM_NAME.qcow2
-EXTRA_DISK=$VM_PATH/cifstest.qcow2
 SERIAL_PATH=/tmp/serial-$(date +%Y%m%d%H%M%S).$$
+if [[ "$XDISK" = yes ]]; then
+	EXTRA_DISK=$VM_PATH/cifstest.qcow2
+fi
 
 # VM memory parameters ...
 VM_RAM=${VM_RAM:-4096}
@@ -419,10 +423,13 @@ echo -e "\n{INFO} copy iso file # ..."
 \rm -f $VM_IMAGE
 \cp -f $WIN_ISO $VM_PATH/.
 
-echo -e "\n{INFO} make extra test disk ..."
-qemu-img create -f raw $EXTRA_DISK 5G
-mkfs.vfat $EXTRA_DISK
-qemu-img convert -f raw -O qcow2 $EXTRA_DISK $EXTRA_DISK
+if [[ "$XDISK" = yes ]]; then
+	echo -e "\n{INFO} make extra test disk ..."
+	qemu-img create -f raw $EXTRA_DISK 4G
+	mkfs.vfat $EXTRA_DISK
+	qemu-img convert -f raw -O qcow2 $EXTRA_DISK $EXTRA_DISK
+	XDISK_OPTS="--disk path=$EXTRA_DISK,bus=sata"
+fi
 
 echo -e "\n{INFO} get available vnc port ..."
 while nc 127.0.0.1 ${VNCPORT} </dev/null &>/dev/null; do
@@ -441,7 +448,7 @@ virt-install --connect=qemu:///system --hvm --accelerate --cpu host \
 	--cdrom $VM_PATH/${WIN_ISO##*/} \
 	--disk path=$VM_IMAGE,size=$VM_DISKSIZE,format=qcow2,cache=none \
 	--disk path=$ANSF_MEDIA_PATH,device=$ANSF_MEDIA_TYPE \
-	--disk path=$EXTRA_DISK,bus=sata \
+	$XDISK_OPTS \
 	--serial file,path=$SERIAL_PATH --serial pty \
 	--network $VM_NET_OPT_EXTERNAL --network $VM_NET_OPT_INTERNAL \
 	--vnc --vnclisten 0.0.0.0 --vncport ${VNCPORT} || { echo error $? from virt-install ; exit 1 ; }
@@ -473,6 +480,7 @@ echo -e "\n{INFO} waiting install done ...\n\tvncviewer $VIRTHOST:$VNCPORT"
 
 fsdev=/dev/sdb1
 [[ "$ANSF_MEDIA_TYPE" = floppy ]] && fsdev=/dev/sdc
+[[ "$XDISK" = yes ]] && fsdev=/dev/sdd1
 for ((i=0; i<=VM_TIMEOUT; i++)) ; do
 	virtcat $VM_NAME $fsdev /$INSTALL_COMPLETE_FILE &>/dev/null && break
 	sleep 1m

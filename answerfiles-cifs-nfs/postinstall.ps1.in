@@ -38,11 +38,22 @@ Function Install-Sshd() {
 }
 
 Out-Host "==> Start postinstall ..."
+Out-Host "==> Start initialize second disk ..."
+Get-Disk |
+	Where partitionstyle -eq 'raw' |
+	Initialize-Disk -PartitionStyle MBR -PassThru |
+	New-Partition -AssignDriveLetter -UseMaximumSize |
+	Format-Volume -FileSystem NTFS -NewFileSystemLabel "test" -Confirm:$false
 
 $LogPath = "C:"
-if (Test-Path -Path A:) {
+$TestPath = "C:"
+if (Test-Path -Path E:) {
+	$LogPath = "E:"
+	$TestPath = "E:"
+} elseif (Test-Path -Path A:) {
 	$LogPath = "A:"
 }
+
 $PostProg = "@ANSF_DRIVE_LETTER@\postinstall.ps1"
 $RunOnceKey = "HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce"
 
@@ -114,7 +125,7 @@ switch($Stage) {
 			Add-WindowsCapability -Online -Name FS-NFS-Service
 		}
 		Import-Module NFS
-		$nfsPath = "C:\nfstest"
+		$nfsPath = "$TestPath\nfstest"
 		$nfsShareName = "nfstest"
 		mkdir $nfsPath
 		New-NfsShare -Name $nfsShareName -Path $nfsPath -Authentication All -AllowRootAccess $True -Permission readwrite
@@ -131,7 +142,7 @@ switch($Stage) {
 		Set-SmbServerConfiguration -EnableSMB2Protocol $true -Force
 		Import-Module SmbShare
 		Import-Module SmbWitness
-		$cifsPath = "C:\cifstest"
+		$cifsPath = "$TestPath\cifstest"
 		$cifsShareName = "cifstest"
 		mkdir $cifsPath
 		New-SmbShare -Name $cifsShareName -Path $cifsPath -Description "for cifs share test 0_o"
