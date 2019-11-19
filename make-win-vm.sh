@@ -404,7 +404,7 @@ case "$ANSF_MEDIA_TYPE" in
 "floppy")
 	ANSF_MEDIA_PATH=$ANSF_FLOPPY
 	ANSF_DRIVE_LETTER="A:"
-	POST_INSTALL_LOGP="A:"
+	POST_INSTALL_LOGP="C:"
 	mkfs.vfat -C $ANSF_FLOPPY 1440 || { echo error $? from mkfs.vfat -C $ANSF_FLOPPY 1440; exit 1; }
 	mount -o loop -t vfat $ANSF_FLOPPY $media_mp
 	process_ansf $media_mp "$@"
