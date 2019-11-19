@@ -169,7 +169,7 @@ Usage: $PROG [OPTION]...
   --timeout <>  #Set waiting timeout for installation.
   --vncport <>  #Set vncport
   --check-ad    #do ad connection test after install complete
-  --image-dir <>#folder to save vm images
+  --vmshome <>  #folder to save vm dir/images
   --enable-kdc  #enable AD KDC service(in case use answerfiles-cifs-nfs/postinstall.ps1)
 		#- to do nfs/cifs krb5 test
   --parent-domain <parent-domain>
@@ -201,7 +201,7 @@ ARGS=$(getopt -o hu:p:t:b \
 	--long timeout: \
 	--long vncport: \
 	--long check-ad \
-	--long image-dir: \
+	--long vmshome: \
 	--long password: \
 	--long enable-kdc \
 	--long parent-domain: \
@@ -231,9 +231,9 @@ while true; do
 	-t|--ans-file-media-type) ANSF_MEDIA_TYPE="$2"; shift 2;;
 	-b|--bridge) NetMode=bridge; shift 1;;
 	--timeout) VM_TIMEOUT="$2"; shift 2;;
-	--vncport) VNC_PORT="$2"; shift 2;;
+	--vncport) VNCPORT="$2"; shift 2;;
 	--check-ad) CHECK_AD="yes"; shift 1;;
-	--image-dir) VM_IMG_DIR=$2; shift 2;;
+	--vmshome) VMS_HOME=$2; shift 2;;
 	--enable-kdc) KDC_OPT="-kdc"; shift 1;;
 	--parent-domain) PARENT_DOMAIN="$2"; shift 2;;
 	--parent-ip) PARENT_IP="$2"; shift 2;;
@@ -281,12 +281,14 @@ INSTALL_COMPLETE_FILE=installcomplete
 POST_INSTALL_LOGP=C:
 POST_INSTALL_LOGF=postinstall.log
 DEFAULT_VM_IMG_DIR=/var/lib/libvirt/images
-VM_IMG_DIR=${VM_IMG_DIR:-/home/virt-images}
+VMS_HOME=${VMS_HOME:-/home/virt-images}
+VM_PATH=$VMS_HOME/$VM_NAME
 VM_TIMEOUT=${VM_TIMEOUT:-60}
 VIRTHOST=$(hostname -f)
-VNC_PORT=${VNC_PORT:-7788}
-mkdir -p $VM_IMG_DIR
-chcon --reference=$DEFAULT_VM_IMG_DIR $VM_IMG_DIR
+VNCPORT=${VNCPORT:-7788}
+mkdir -p $VM_PATH
+chcon -R --reference=$DEFAULT_VM_IMG_DIR $VMS_HOME
+eval setfacl -mu:qemu:rx $VMS_HOME
 
 
 # =======================================================================
@@ -315,7 +317,7 @@ fi
 service libvirtd start
 service virtlogd start
 { #for RHEL-6 "ERROR  Format cannot be specified for unmanaged storage."
-  virsh pool-define-as --name extpool --type dir --target $VM_IMG_DIR
+  virsh pool-define-as --name extpool --type dir --target $VMS_HOME
   virsh pool-start extpool
 }
 
@@ -341,11 +343,14 @@ VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139,mac=$VM_INT_MAC"
 
 # VM disk parameters ...
 ANSF_MEDIA_TYPE=${ANSF_MEDIA_TYPE:-floppy}
-ANSF_CDROM=${ANSF_CDROM:-$VM_IMG_DIR/$VM_NAME-ansf-cdrom.iso}
-ANSF_FLOPPY=${ANSF_FLOPPY:-$VM_IMG_DIR/$VM_NAME-ansf-floppy.vfd}
-VM_IMAGE=${VM_IMAGE:-$VM_IMG_DIR/$VM_NAME.qcow2}
-EXTRA_DISK=$VM_IMG_DIR/cifstest.qcow2
+ANSF_CDROM=$VM_PATH/$VM_NAME-ansf-cdrom.iso
+ANSF_FLOPPY=$VM_PATH/$VM_NAME-ansf-floppy.vfd
+VM_IMAGE=$VM_PATH/$VM_NAME.qcow2
+EXTRA_DISK=$VM_PATH/cifstest.qcow2
 SERIAL_PATH=/tmp/serial-$(date +%Y%m%d%H%M%S).$$
+
+# VM memory parameters ...
+VM_RAM=${VM_RAM:-4096}
 
 # ====================================================================
 # Generate cdrom/floppy of answerfiles
@@ -383,6 +388,10 @@ process_ansf() {
 }
 
 echo -e "\n{INFO} make answer file media ..."
+eval ls "$@" || {
+	echo -e "\n{ERROR} answer files $@ is not exist"
+	exit 1
+}
 rpm -q libguestfs-winsupport || ANSF_MEDIA_TYPE=floppy  #workaround for system without libguestfs-winsupport
 virt-cat --help|grep -q .--mount || ANSF_MEDIA_TYPE=floppy  #workaround for old libguestfs-tools-c(on RHEL-6)
 \rm -f $ANSF_FLOPPY $ANSF_CDROM  #remove old/exist media file
@@ -406,27 +415,39 @@ case "$ANSF_MEDIA_TYPE" in
 esac
 \rm -rf $media_mp
 
+echo -e "\n{INFO} copy iso file # ..."
+\rm -f $VM_IMAGE
+\cp -f $WIN_ISO $VM_PATH/.
+
 echo -e "\n{INFO} make extra test disk ..."
 qemu-img create -f raw $EXTRA_DISK 5G
 mkfs.vfat $EXTRA_DISK
 qemu-img convert -f raw -O qcow2 $EXTRA_DISK $EXTRA_DISK
 
+echo -e "\n{INFO} get available vnc port ..."
+while nc 127.0.0.1 ${VNCPORT} </dev/null &>/dev/null; do
+        let VNCPORT++
+done
+echo $VNCPORT >$VM_PATH/vncport
+echo -e "\tvncviewer $VIRTHOST:$VNCPORT #"
+
 # =======================================================================
 # Execute virt-install command with the parameters given
 # =======================================================================
 echo -e "\n{INFO} virt-install ..."
-\rm -f $VM_IMAGE
 virt-install --connect=qemu:///system --hvm --accelerate --cpu host \
-	--name "$VM_NAME" --ram=${VM_RAM:-2048} --vcpu=${VM_CPUS:-2} \
+	--name "$VM_NAME" --ram=${VM_RAM} --vcpu=${VM_CPUS:-2} \
 	--os-variant ${VM_OS_VARIANT} \
-	--cdrom $WIN_ISO \
+	--cdrom $VM_PATH/${WIN_ISO##*/} \
 	--disk path=$VM_IMAGE,size=$VM_DISKSIZE,format=qcow2,cache=none \
 	--disk path=$ANSF_MEDIA_PATH,device=$ANSF_MEDIA_TYPE \
-	--disk path=$EXTRA_DISK,size=5,bus=sata \
+	--disk path=$EXTRA_DISK,bus=sata \
 	--serial file,path=$SERIAL_PATH --serial pty \
 	--network $VM_NET_OPT_EXTERNAL --network $VM_NET_OPT_INTERNAL \
-	--vnc --vnclisten 0.0.0.0 --vncport ${VNC_PORT} || { echo error $? from virt-install ; exit 1 ; }
+	--vnc --vnclisten 0.0.0.0 --vncport ${VNCPORT} || { echo error $? from virt-install ; exit 1 ; }
 \rm $SERIAL_PATH
+
+#virsh attach-disk $VM_NAME --subdriver raw $VMpath/test.raw vdc --current --targetbus usb
 
 # workaround for https://bugzilla.redhat.com/1043249
 export LIBGUESTFS_BACKEND=direct
@@ -448,7 +469,8 @@ virtcat() {
 	fi
 	return $ret
 }
-echo -e "\n{INFO} waiting install done ..."
+echo -e "\n{INFO} waiting install done ...\n\tvncviewer $VIRTHOST:$VNCPORT"
+
 fsdev=/dev/sdb1
 [[ "$ANSF_MEDIA_TYPE" = floppy ]] && fsdev=/dev/sdc
 for ((i=0; i<=VM_TIMEOUT; i++)) ; do
@@ -491,7 +513,7 @@ cat <<-EOF | tee $VM_INFO_FILE
 	DOMAIN=$DOMAIN
 	FQDN=$FQDN
 	NETBIOS_NAME=$NETBIOS_NAME
-	VNC_URL=$VIRTHOST:$VNC_PORT
+	VNC_URL=$VIRTHOST:$VNCPORT
 EOF
 
 # Test SSH connection
