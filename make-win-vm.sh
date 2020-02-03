@@ -298,10 +298,13 @@ osvariants=$(virt-install --os-variant list 2>/dev/null) ||
 	}
 }
 
+is_intranet && {
+	isobaseurl=http://download.eng.pek2.redhat.com/qa/rhts/lookaside/windows-images
+	OpenSSHUrl=http://download.eng.pek2.redhat.com/qa/rhts/lookaside/windows-images/OpenSSH-Win64.zip
+}
 [[ ! -f "$WIN_ISO" ]] && {
 	isoname=${WIN_ISO##*/}
-	is_intranet && isourl=http://download.eng.pek2.redhat.com/qa/rhts/lookaside/windows-images
-	[[ -n "$isourl" ]] && curl -o $WIN_ISO -L $isourl/$isoname
+	[[ -n "$isobaseurl" ]] && curl -o $WIN_ISO -L $isobaseurl/$isoname
 }
 
 # =======================================================================
