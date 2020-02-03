@@ -304,7 +304,7 @@ is_intranet && {
 }
 [[ ! -f "$WIN_ISO" ]] && {
 	isoname=${WIN_ISO##*/}
-	[[ -n "$isobaseurl" ]] && curl -o $WIN_ISO -L $isobaseurl/$isoname
+	[[ -n "$isobaseurl" ]] && while ! curl -f -o $WIN_ISO -L $isobaseurl/$isoname; do sleep 1; done
 }
 
 # =======================================================================
