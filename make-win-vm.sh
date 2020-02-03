@@ -155,7 +155,7 @@ Usage: $PROG [OPTION]...
 		#but it can be higher. The default is automatically computed and set.
 		#see: https://docs.microsoft.com/en-us/powershell/module/addsdeployment/install-addsforest?view=win10-ps
 
-  --vm-name <VM_NAME>
+  --vm-name|--vmname <VM_NAME>
 		#*Specify the vm guest's name.
   --ram <>      #VM's ram size
   --cpus <>     #Numbers of cpu cores for VM.
@@ -179,6 +179,26 @@ Usage: $PROG [OPTION]...
   --openssh <url>
 		#url to download OpenSSH-Win64.zip
   --overwrite	#Force to set vm-name, regardless whether the name is in use or not.
+
+Example:
+  #Setup Active Directory forest Win2012r2:
+  ./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2.iso --os-variant win2k12r2 \
+    --product-key W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9 --vmname rootds --domain ad.test -p ~Ocgxyz --cpus 2 \
+    --ram 2048 --disk-size 20 -b --vncport 7777 --ad-forest-level Win2012R2  ./answerfiles-addsforest/*
+
+  ./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2-Evaluation.iso \
+    --os-variant win2k12r2 --vmname rootds --domain kernel.test -p ~Ocgabc \
+    --cpus 2 --ram 2048 --disk-size 20 -b --vncport 7788 ./answerfiles-addsforest/*
+
+  #Setup Active Directory child domain:
+  ./make-win-vm.sh --image /var/lib/libvirt/images/Win2016-Evaluation.iso \
+    --os-variant win2k16 --vmname child --parent-domain kernel.test --domain fs  -p ~Ocgxyz \
+    --cpus 2 --ram 2048 --disk-size 20 -b --vncport 7789 ./answerfiles-addsdomain/* --parent-ip \$addr
+
+  #Setup Windows as NFS/CIFS server, and enable KDC(--enable-kdc):
+  ./make-win-vm.sh --image /var/lib/libvirt/images/Win2019-Evaluation.iso \
+    --os-variant win2k19 --vmname fs --domain nfs.test -p ~Ocgxyz \
+    --cpus 4 --ram 2048 --disk-size 60 --vncport 7799  ./answerfiles-cifs-nfs/* --enable-kdc
 EOF
 }
 
@@ -191,7 +211,7 @@ ARGS=$(getopt -o hu:p:t:bf \
 	--long domain: \
 	--long ad-forest-level: \
 	--long ad-domain-level: \
-	--long vm-name: \
+	--long vm-name: --long vmname: \
 	--long ram: \
 	--long cpus: \
 	--long disk-size: \
@@ -224,7 +244,7 @@ while true; do
 	-p|password) ADMINPASSWORD="$2"; shift 2;;
 	--ad-forest-level) AD_FOREST_LEVEL="$2"; shift 2;;
 	--ad-domain-level) AD_DOMAIN_LEVEL="$2"; shift 2;;
-	--vm-name) VM_NAME="$2"; shift 2;;
+	--vm-name|--vmname) VM_NAME="$2"; shift 2;;
 	--ram) VM_RAM="$2"; shift 2;;
 	--cpus) VM_CPUS="$2"; shift 2;;
 	--disk-size) VM_DISKSIZE="$2"; shift 2;;
