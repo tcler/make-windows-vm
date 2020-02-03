@@ -201,7 +201,7 @@ Examples:
   #Setup Windows as NFS/CIFS server, and enable KDC(--enable-kdc):
   ./make-win-vm.sh --image /var/lib/libvirt/images/Win2019-Evaluation.iso \
     --os-variant win2k19 --vmname win2019-cifs-nfs --domain cifs-nfs.test -p ~Ocgxyz \
-    --cpus 4 --ram 2048 --disk-size 60 --vncport 7799  ./answerfiles-cifs-nfs/* --enable-kdc
+    --cpus 4 --ram 4096 --disk-size 60 --vncport 7799  ./answerfiles-cifs-nfs/* --enable-kdc
 EOF
 }
 
