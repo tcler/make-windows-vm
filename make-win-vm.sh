@@ -108,6 +108,9 @@ eject_cds() {
 	done
 }
 
+is_available_url() { curl --connect-timeout 8 -m 16 --output /dev/null --silent --head --fail $1 &>/dev/null; }
+is_intranet() { is_available_url http://download.devel.redhat.com; }
+
 # ==============================================================================
 # Parameter Processing
 # ==============================================================================
@@ -180,7 +183,7 @@ Usage: $PROG [OPTION]...
 		#url to download OpenSSH-Win64.zip
   --overwrite	#Force to set vm-name, regardless whether the name is in use or not.
 
-Example:
+Examples:
   #Setup Active Directory forest Win2012r2:
   ./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2.iso --os-variant win2k12r2 \
     --product-key W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9 --vmname rootds --domain ad.test -p ~Ocgxyz --cpus 2 \
@@ -293,6 +296,12 @@ osvariants=$(virt-install --os-variant list 2>/dev/null) ||
 		echo -e "Unknown OS variant '$VM_OS_VARIANT'; accepted os variants:\n$osvariants"|less
 		exit 1
 	}
+}
+
+[[ ! -f "$WIN_ISO" ]] && {
+	isoname=${WIN_ISO##*/}
+	is_intranet && isourl=http://download.eng.pek2.redhat.com/qa/rhts/lookaside/windows-images
+	[[ -n "$isourl" ]] && curl -o $WIN_ISO -L $isourl/$isoname
 }
 
 # =======================================================================
