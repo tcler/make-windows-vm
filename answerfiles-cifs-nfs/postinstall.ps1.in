@@ -127,9 +127,13 @@ switch($Stage) {
 		Import-Module NFS
 		$nfsPath = "$TestPath\nfstest"
 		$nfsShareName = "nfstest"
-		mkdir $nfsPath
+		$nfsPath2 = "$TestPath\nfssch"
+		$nfsShareName2 = "nfssch"
+		mkdir $nfsPath $nfsPath2
 		New-NfsShare -Name $nfsShareName -Path $nfsPath -Authentication All -AllowRootAccess $True -Permission readwrite
+		New-NfsShare -Name $nfsShareName2 -Path $nfsPath2 -Authentication All -AllowRootAccess $True -Permission readwrite
 		Set-NfsShare -Name $nfsShareName -EnableUnmappedAccess $True
+		Set-NfsShare -Name $nfsShareName2 -EnableUnmappedAccess $True
 		nfsadmin server stop
 		nfsadmin server start
 		echo $null >> $nfsPath\file
@@ -144,12 +148,18 @@ switch($Stage) {
 		Import-Module SmbWitness
 		$cifsPath = "$TestPath\cifstest"
 		$cifsShareName = "cifstest"
-		mkdir $cifsPath
+		$cifsPath2 = "$TestPath\cifssch"
+		$cifsShareName2 = "cifssch"
+		mkdir $cifsPath $cifsPath2
 		New-SmbShare -Name $cifsShareName -Path $cifsPath -Description "for cifs share test 0_o"
+		New-SmbShare -Name $cifsShareName2 -Path $cifsPath2 -Description "for cifs share test too 0_o"
 		Grant-SmbShareAccess -Name $cifsShareName -AccountName "Everyone" -AccessRight Full -Force
+		Grant-SmbShareAccess -Name $cifsShareName2 -AccountName "Everyone" -AccessRight Full -Force
 		Install-WindowsFeature -Name FS-Resource-Manager -IncludeManagementTools
-		New-FsrmQuota -Path $cifsPath -Description "limit usage to 20 GB." -Size 20GB
+		New-FsrmQuota -Path $cifsPath -Description "limit usage to 10 GB." -Size 10GB
+		New-FsrmQuota -Path $cifsPath2 -Description "limit usage to 10 GB." -Size 10GB
 		Get-SmbShareAccess -Name $cifsShareName
+		Get-SmbShareAccess -Name $cifsShareName2
 		echo $null >> $cifsPath\file
 		New-Item -ItemType SymbolicLink -Path "$cifsPath\link" -Target "$cifsPath\file"
 		New-Item -ItemType SymbolicLink -Path "$cifsPath\link2" -Target "file"
