@@ -129,7 +129,8 @@ switch($Stage) {
 		$nfsShareName = "nfstest"
 		$nfsPath2 = "$TestPath\nfssch"
 		$nfsShareName2 = "nfssch"
-		mkdir $nfsPath $nfsPath2
+		mkdir $nfsPath
+		mkdir $nfsPath2
 		New-NfsShare -Name $nfsShareName -Path $nfsPath -Authentication All -AllowRootAccess $True -Permission readwrite
 		New-NfsShare -Name $nfsShareName2 -Path $nfsPath2 -Authentication All -AllowRootAccess $True -Permission readwrite
 		Set-NfsShare -Name $nfsShareName -EnableUnmappedAccess $True
@@ -150,7 +151,8 @@ switch($Stage) {
 		$cifsShareName = "cifstest"
 		$cifsPath2 = "$TestPath\cifssch"
 		$cifsShareName2 = "cifssch"
-		mkdir $cifsPath $cifsPath2
+		mkdir $cifsPath
+		mkdir $cifsPath2
 		New-SmbShare -Name $cifsShareName -Path $cifsPath -Description "for cifs share test 0_o"
 		New-SmbShare -Name $cifsShareName2 -Path $cifsPath2 -Description "for cifs share test too 0_o"
 		Grant-SmbShareAccess -Name $cifsShareName -AccountName "Everyone" -AccessRight Full -Force
