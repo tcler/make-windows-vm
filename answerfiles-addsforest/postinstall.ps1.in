@@ -117,6 +117,7 @@ switch($Stage) {
 		$SafePasswd=(convertto-securestring "@ADMINPASSWORD@" -asplaintext -force)
 
 		# Installation
+		Remove-WindowsFeature -Name AD-Certificate
 		Install-windowsfeature -name AD-Domain-Services -IncludeManagementTools
 		Install-ADDSForest `
 		-DomainName @AD_DOMAIN@ `
@@ -146,8 +147,8 @@ switch($Stage) {
 		# Install Standalone Root CA
 		Out-Host "`n==> Install Standalone Root CA"
 		Import-Module ServerManager
-		Add-WindowsFeature Adcs-Cert-Authority -IncludeManagementTools
-		Install-AdcsCertificationAuthority -force -CAType EnterpriseRootCa
+		#Add-WindowsFeature Adcs-Cert-Authority -IncludeManagementTools
+		#Install-AdcsCertificationAuthority -force -CAType EnterpriseRootCa
 
 		# Reboot to complete Root CA Services setup
 		Out-Host "`n==> Reboot to complete Root CA setup"

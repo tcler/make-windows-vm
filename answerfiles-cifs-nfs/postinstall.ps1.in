@@ -151,21 +151,26 @@ switch($Stage) {
 		$cifsShareName = "cifstest"
 		$cifsPath2 = "$TestPath\cifssch"
 		$cifsShareName2 = "cifssch"
+		$cifsPath3 = "$TestPath\dfsroot"
+		$cifsShareName3 = "dfsroot"
 		mkdir $cifsPath
 		mkdir $cifsPath2
+		mkdir $cifsPath3
 		New-SmbShare -Name $cifsShareName -Path $cifsPath -Description "for cifs share test 0_o"
 		New-SmbShare -Name $cifsShareName2 -Path $cifsPath2 -Description "for cifs share test too 0_o"
+		New-SmbShare -Name $cifsShareName3 -Path $cifsPath3 -Description "for cifs share test too 0_o"
 		Grant-SmbShareAccess -Name $cifsShareName -AccountName "Everyone" -AccessRight Full -Force
 		Grant-SmbShareAccess -Name $cifsShareName2 -AccountName "Everyone" -AccessRight Full -Force
+		Grant-SmbShareAccess -Name $cifsShareName3 -AccountName "Everyone" -AccessRight Full -Force
 		Install-WindowsFeature -Name FS-Resource-Manager -IncludeManagementTools
 		New-FsrmQuota -Path $cifsPath -Description "limit usage to 10 GB." -Size 10GB
 		New-FsrmQuota -Path $cifsPath2 -Description "limit usage to 10 GB." -Size 10GB
 		Get-SmbShareAccess -Name $cifsShareName
 		Get-SmbShareAccess -Name $cifsShareName2
+		Get-SmbShareAccess -Name $cifsShareName3
 		echo $null >> $cifsPath\file
 		New-Item -ItemType SymbolicLink -Path "$cifsPath\link" -Target "$cifsPath\file"
 		New-Item -ItemType SymbolicLink -Path "$cifsPath\link2" -Target "file"
-
 		# for login without passwd from client
 		net user guest /active:yes
 		#reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v forceguest /t REG_DWORD /d 00000000 /f
@@ -174,7 +179,10 @@ switch($Stage) {
 		if ($kdc) {
 			# Setup AD as Domain Controller
 			Out-Host "`n==> Setup AD as Domain Controller"
+			Remove-WindowsFeature -Name AD-Certificate
+
 			Install-windowsfeature -name AD-Domain-Services -IncludeManagementTools
+			Import-Module ADDSDeployment
 			$SafePasswd=(convertto-securestring "@ADMINPASSWORD@" -asplaintext -force)
 			Install-ADDSForest `
 			-DomainName @AD_DOMAIN@ `
@@ -205,9 +213,21 @@ switch($Stage) {
 		# Install Standalone Root CA
 		Out-Host "`n==> Install Standalone Root CA"
 		Import-Module ServerManager
-		Add-WindowsFeature Adcs-Cert-Authority -IncludeManagementTools
-		Install-AdcsCertificationAuthority -force -CAType EnterpriseRootCa
-
+		#Add-WindowsFeature Adcs-Cert-Authority -IncludeManagementTools
+		#Install-AdcsCertificationAuthority -force -CAType EnterpriseRootCa
+		Install-WindowsFeature -Name FS-DFS-Namespace,FS-DFS-Replication -IncludeManagementTools
+		$cifsShareName = "cifstest"
+		$cifsShareName3 = "dfsroot"
+ 		New-DfsnRoot -TargetPath "\\@GUEST_HOSTNAME@\$cifsShareName3" -Type DomainV2 -Path "\\@AD_DOMAIN@\dfsroot" -EnableSiteCosting:$true -EnableAccessBasedEnumeration:$True
+		New-DfsnFolderTarget -Path "\\@AD_DOMAIN@\dfsroot\local" -TargetPath  "\\@GUEST_HOSTNAME@\$cifsShareName"
+		$dfstarget="@DFS_TARGET@"
+		if ($dfstarget)
+		{
+			$dfsserv=$dfstarget.Split(":")[0]
+			$dfsshare=$dfstarget.Split(":")[1]
+			New-DfsnFolderTarget -Path "\\@AD_DOMAIN@\dfsroot\remote" -TargetPath  "\\$dfsserv\$dfsshare"
+			New-DfsnFolderTarget -Path "\\@AD_DOMAIN@\dfsroot\remote" -TargetPath  "\\@GUEST_HOSTNAME@\$cifsShareName"
+		}
 		# Reboot to complete Root CA Services setup
 		Out-Host "`n==> Reboot to complete Root CA setup"
 		Set-ItemProperty $RunOnceKey "NextRun" "powershell $PostProg afterRootCASetup >> @POST_INSTALL_LOG@ 2>&1"

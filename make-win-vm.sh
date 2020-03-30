@@ -179,6 +179,8 @@ Usage: $PROG [OPTION]...
 		#Domain name of an existing domain.
   --parent-ip <parent-ip>
 		#IP address of an existing domain.
+  --dfs-target <server:sharename>
+		#The specified cifs share will be added into dfs target.
   --openssh <url>
 		#url to download OpenSSH-Win64.zip
   --overwrite	#Force to set vm-name, regardless whether the name is in use or not.
@@ -202,6 +204,12 @@ Examples:
   ./make-win-vm.sh --image /var/lib/libvirt/images/Win2019-Evaluation.iso \
     --os-variant win2k19 --vmname win2019-cifs-nfs --domain cifs-nfs.test -p ~Ocgxyz \
     --cpus 4 --ram 4096 --disk-size 60 --vncport 7799  ./answerfiles-cifs-nfs/* --enable-kdc
+
+  #Setup Windows as NFS/CIFS server, and enable KDC(--enable-kdc), and add dfs target:
+  ./make-win-vm.sh --image /var/lib/libvirt/images/Win2019-Evaluation.iso \
+    --os-variant win2k19 --vmname win2019-cifs-nfs --domain cifs-nfs.test -p ~Ocgxyz \
+    --cpus 4 --ram 4096 --disk-size 60 --vncport 7799  ./answerfiles-cifs-nfs/* --enable-kdc \
+    --dfs-target hostname:cifs
 EOF
 }
 
@@ -230,6 +238,7 @@ ARGS=$(getopt -o hu:p:t:bf \
 	--long parent-domain: \
 	--long parent-ip: \
 	--long openssh: \
+	--long dfs-target: \
 	--long overwrite --long force\
 	--long user: \
 	--long xdisk \
@@ -262,6 +271,7 @@ while true; do
 	--parent-domain) PARENT_DOMAIN="$2"; shift 2;;
 	--parent-ip) PARENT_IP="$2"; shift 2;;
 	--openssh) OpenSSHUrl="$2"; shift 2;;
+	--dfs-target) DFS_TARGET="$2"; shift 2;;
 	--overwrite|--force|-f) OVERWRITE="yes"; shift 1;;
 	--xdisk) XDISK="yes"; shift 1;;
 	--) shift; break;;
@@ -339,6 +349,7 @@ ADMINPASSWORD=${ADMINPASSWORD:-Sesame~0pen}
 FQDN=$GUEST_HOSTNAME.$DOMAIN
 [[ -n "$PARENT_DOMAIN" ]] && FQDN+=.$PARENT_DOMAIN
 NETBIOS_NAME=$(echo ${DOMAIN//./} | tr '[a-z]' '[A-Z]')
+NETBIOS_NAME=${NETBIOS_NAME:0:15}
 
 # =======================================================================
 # KVM Preparation
@@ -416,6 +427,7 @@ process_ansf() {
 		-e "s/@KDC_OPT@/$KDC_OPT/g" \
 		-e "s/@PARENT_DOMAIN@/$PARENT_DOMAIN/g" \
 		-e "s/@PARENT_IP@/$PARENT_IP/g" \
+		-e "s/@DFS_TARGET@/$DFS_TARGET/g" \
 		-e "s|@OpenSSHUrl@|$OpenSSHUrl|g" \
 		$destdir/*
 	unix2dos $destdir/* >/dev/null
