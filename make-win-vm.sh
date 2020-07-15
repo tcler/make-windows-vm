@@ -387,7 +387,7 @@ echo -e "\n{INFO} vm nic for inside network(mac: $VM_INT_MAC) ..."
 VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139,mac=$VM_INT_MAC"
 
 # VM disk parameters ...
-ANSF_MEDIA_TYPE=${ANSF_MEDIA_TYPE:-floppy}
+ANSF_MEDIA_TYPE=${ANSF_MEDIA_TYPE:-cdrom}
 ANSF_CDROM=$VM_PATH/$VM_NAME-ansf-cdrom.iso
 ANSF_FLOPPY=$VM_PATH/$VM_NAME-ansf-floppy.vfd
 VM_IMAGE=$VM_PATH/$VM_NAME.qcow2
