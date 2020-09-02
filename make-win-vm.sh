@@ -108,6 +108,26 @@ eject_cds() {
 	done
 }
 
+enable_loop_part() {
+	local partn=$(< /sys/module/loop/parameters/max_part)
+	if test "$partn" = 0; then
+		modprobe -r loop
+		modprobe loop max_part=31
+	fi
+}
+
+create_vdisk() {
+	local path=$1
+	local size=$2
+	local fstype=$3
+
+	dd if=/dev/null of=$path bs=1${size//[0-9]/} seek=${size//[^0-9]/}
+	local dev=$(losetup --partscan --show --find $path)
+	printf "o\nn\np\n1\n\n\nw\n" | fdisk "$dev"
+	mkfs.$fstype "${dev}p1"
+	echo "${dev} ${dev}p1"
+}
+
 is_available_url() { curl --connect-timeout 8 -m 16 --output /dev/null --silent --head --fail $1 &>/dev/null; }
 is_intranet() { is_available_url http://download.devel.redhat.com; }
 
@@ -386,7 +406,7 @@ echo -e "\n{INFO} vm nic for inside network(mac: $VM_INT_MAC) ..."
 VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139,mac=$VM_INT_MAC"
 
 # VM disk parameters ...
-ANSF_MEDIA_TYPE=${ANSF_MEDIA_TYPE:-cdrom}
+ANSF_MEDIA_TYPE=${ANSF_MEDIA_TYPE:-usb}
 ANSF_CDROM=$VM_PATH/$VM_NAME-ansf-cdrom.iso
 ANSF_FLOPPY=$VM_PATH/$VM_NAME-ansf-floppy.vfd
 ANSF_USB=$VM_PATH/$VM_NAME-ansf-usb.image
@@ -440,8 +460,8 @@ eval ls "$@" || {
 	echo -e "\n{ERROR} answer files $@ is not exist"
 	exit 1
 }
-rpm -q libguestfs-winsupport || ANSF_MEDIA_TYPE=cdrom  #workaround for system without libguestfs-winsupport
-virt-cat --help|grep -q .--mount || ANSF_MEDIA_TYPE=cdrom  #workaround for old libguestfs-tools-c(on RHEL-6)
+rpm -q libguestfs-winsupport || ANSF_MEDIA_TYPE=usb  #workaround for system without libguestfs-winsupport
+virt-cat --help|grep -q .--mount || ANSF_MEDIA_TYPE=usb  #workaround for old libguestfs-tools-c(on RHEL-6)
 \rm -f $ANSF_FLOPPY $ANSF_CDROM $ANSF_USB #remove old/exist media file
 media_mp=$(mktemp -d)
 case "$ANSF_MEDIA_TYPE" in
@@ -467,12 +487,14 @@ case "$ANSF_MEDIA_TYPE" in
 	;;
 "usb")
 	ANSF_MEDIA_PATH=$ANSF_USB
-	ANSF_DRIVE_LETTER="E:"
-	usbSize=$((1024*8)) #unit KB
-	mkfs.vfat -A -C $ANSF_USB $usbSize || { echo error $? from mkfs.vfat -A -C $ANSF_USB $usbSize; exit 1; }
-	mount -o loop -t vfat $ANSF_USB $media_mp
+	ANSF_DRIVE_LETTER="D:"
+	usbSize=64M
+	stdout=$(create_vdisk $ANSF_USB ${usbSize} vfat)
+	read dev part_dev < <(echo "$stdout"|tail -1)
+	mount -t vfat $part_dev $media_mp
 	process_ansf $media_mp "$@"
 	umount $media_mp
+	losetup -d $dev
 	#qemu-img convert -f raw -O qcow2 $ANSF_USB $ANSF_USB
 	DiskOption=bus=usb,format=raw,removable=on
 	;;
@@ -530,13 +552,20 @@ virtcat() {
 		ret=$?
 	else
 		local ansf=
-		[[ -f $ANSF_FLOPPY ]] && ansf=$ANSF_FLOPPY
-		[[ -f $ANSF_USB ]] && ansf=$ANSF_USB
+		[[ -f $ANSF_FLOPPY ]] && {
+			_dev=$(losetup --partscan --show --find $ANSF_FLOPPY)
+			ansf=$_dev
+		}
+		[[ -f $ANSF_USB ]] && {
+			_dev=$(losetup --partscan --show --find $ANSF_USB)
+			ansf=${_dev}p1
+		}
 		local tmp_mp=$(mktemp -d)
-		mount -oro,loop $ansf $tmp_mp
+		mount -oro $ansf $tmp_mp
 		cat $tmp_mp/$file
 		ret=$?
 		umount $tmp_mp; \rm -rf $tmp_mp
+		losetup -d $_dev
 	fi
 	return $ret
 }
@@ -544,6 +573,7 @@ echo -e "\n{INFO} waiting install done ...\n\tvncviewer $VIRTHOST:$VNCPORT"
 
 fsdev=/dev/sdb1
 [[ "$ANSF_MEDIA_TYPE" = floppy ]] && fsdev=/dev/sdc
+[[ "$ANSF_MEDIA_TYPE" = usb ]] && fsdev=/dev/sdc1
 [[ "$XDISK" = yes ]] && fsdev=/dev/sdd1
 for ((i=0; i<=VM_TIMEOUT; i++)) ; do
 	virtcat $VM_NAME $fsdev /$INSTALL_COMPLETE_FILE &>/dev/null && break

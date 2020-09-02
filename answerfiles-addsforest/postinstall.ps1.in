@@ -47,7 +47,7 @@ $LogPath = "C:"
 $TestPath = "C:"
 if (Test-Path -Path F:) {
 	$TestPath = "F:"
-} elseif (Test-Path -Path E:) {
+} elseif ((Test-Path -Path A:) -and (Test-Path -Path E:)) {
 	$TestPath = "E:"
 }
 

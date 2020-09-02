@@ -47,7 +47,7 @@ $LogPath = "C:"
 $TestPath = "C:"
 if (Test-Path -Path F:) {
 	$TestPath = "F:"
-} elseif (Test-Path -Path E:) {
+} elseif ((Test-Path -Path A:) -and (Test-Path -Path E:)) {
 	$TestPath = "E:"
 }
 
@@ -170,7 +170,7 @@ switch($Stage) {
 # complete
 Out-Host "`n==> install complete!!!"
 echo "install complete" | out-file -encoding utf8 $LogPath\@INSTALL_COMPLETE_FILE@
-foreach ($dir in ("A:", "F:", "E:")) {
+foreach ($dir in ("A:", "F:", "D:", "E:")) {
 	if (Test-Path -Path $dir) {
 		Copy-Item -Path $LogPath\@INSTALL_COMPLETE_FILE@ -Destination $dir\
 		Copy-Item -Path $LogPath\@IPCONFIG_LOGF@ -Destination $dir\
