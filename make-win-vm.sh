@@ -322,7 +322,6 @@ is_intranet && {
 # =======================================================================
 IPCONFIG_LOGF=ipconfig.log
 INSTALL_COMPLETE_FILE=installcomplete
-POST_INSTALL_LOGP=C:
 POST_INSTALL_LOGF=postinstall.log
 DEFAULT_VM_IMG_DIR=/var/lib/libvirt/images
 VMS_HOME=${VMS_HOME:-/home/Windows_VMs}
@@ -390,6 +389,7 @@ VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139,mac=$VM_INT_MAC"
 ANSF_MEDIA_TYPE=${ANSF_MEDIA_TYPE:-cdrom}
 ANSF_CDROM=$VM_PATH/$VM_NAME-ansf-cdrom.iso
 ANSF_FLOPPY=$VM_PATH/$VM_NAME-ansf-floppy.vfd
+ANSF_USB=$VM_PATH/$VM_NAME-ansf-usb.image
 VM_IMAGE=$VM_PATH/$VM_NAME.qcow2
 SERIAL_PATH=/tmp/serial-$(date +%Y%m%d%H%M%S).$$
 if [[ "$XDISK" = yes ]]; then
@@ -423,7 +423,7 @@ process_ansf() {
 		-e "s/@VIRTHOST@/$VIRTHOST/g" \
 		-e "s/@IPCONFIG_LOGF@/$IPCONFIG_LOGF/g" \
 		-e "s/@GUEST_HOSTNAME@/$GUEST_HOSTNAME/g" \
-		-e "s/@POST_INSTALL_LOG@/$POST_INSTALL_LOGP\\\\$POST_INSTALL_LOGF/g" \
+		-e "s/@POST_INSTALL_LOG@/C:\\\\$POST_INSTALL_LOGF/g" \
 		-e "s/@KDC_OPT@/$KDC_OPT/g" \
 		-e "s/@PARENT_DOMAIN@/$PARENT_DOMAIN/g" \
 		-e "s/@PARENT_IP@/$PARENT_IP/g" \
@@ -440,25 +440,41 @@ eval ls "$@" || {
 	echo -e "\n{ERROR} answer files $@ is not exist"
 	exit 1
 }
-rpm -q libguestfs-winsupport || ANSF_MEDIA_TYPE=floppy  #workaround for system without libguestfs-winsupport
-virt-cat --help|grep -q .--mount || ANSF_MEDIA_TYPE=floppy  #workaround for old libguestfs-tools-c(on RHEL-6)
-\rm -f $ANSF_FLOPPY $ANSF_CDROM  #remove old/exist media file
+rpm -q libguestfs-winsupport || ANSF_MEDIA_TYPE=cdrom  #workaround for system without libguestfs-winsupport
+virt-cat --help|grep -q .--mount || ANSF_MEDIA_TYPE=cdrom  #workaround for old libguestfs-tools-c(on RHEL-6)
+\rm -f $ANSF_FLOPPY $ANSF_CDROM $ANSF_USB #remove old/exist media file
 media_mp=$(mktemp -d)
 case "$ANSF_MEDIA_TYPE" in
 "floppy")
 	ANSF_MEDIA_PATH=$ANSF_FLOPPY
 	ANSF_DRIVE_LETTER="A:"
-	POST_INSTALL_LOGP="C:"
 	mkfs.vfat -C $ANSF_FLOPPY 1440 || { echo error $? from mkfs.vfat -C $ANSF_FLOPPY 1440; exit 1; }
 	mount -o loop -t vfat $ANSF_FLOPPY $media_mp
 	process_ansf $media_mp "$@"
 	umount $media_mp
+	DiskOption=device=floppy
 	;;
 "cdrom")
 	ANSF_MEDIA_PATH=$ANSF_CDROM
 	ANSF_DRIVE_LETTER="E:"
 	process_ansf $media_mp "$@"
 	genisoimage -iso-level 4 -J -l -R -o $ANSF_CDROM $media_mp
+	DiskOption=device=cdrom
+	XDISK=yes
+	[[ -z "$EXTRA_DISK" ]] && {
+		EXTRA_DISK=$VM_PATH/out.qcow2
+	}
+	;;
+"usb")
+	ANSF_MEDIA_PATH=$ANSF_USB
+	ANSF_DRIVE_LETTER="E:"
+	usbSize=$((1024*8)) #unit KB
+	mkfs.vfat -A -C $ANSF_USB $usbSize || { echo error $? from mkfs.vfat -A -C $ANSF_USB $usbSize; exit 1; }
+	mount -o loop -t vfat $ANSF_USB $media_mp
+	process_ansf $media_mp "$@"
+	umount $media_mp
+	#qemu-img convert -f raw -O qcow2 $ANSF_USB $ANSF_USB
+	DiskOption=bus=usb,format=raw,removable=on
 	;;
 esac
 \rm -rf $media_mp
@@ -491,7 +507,7 @@ virt-install --connect=qemu:///system --hvm --accelerate --cpu host \
 	--os-variant ${VM_OS_VARIANT} \
 	--cdrom $VM_PATH/${WIN_ISO##*/} \
 	--disk path=$VM_IMAGE,size=$VM_DISKSIZE,format=qcow2,cache=none \
-	--disk path=$ANSF_MEDIA_PATH,device=$ANSF_MEDIA_TYPE \
+	--disk path=$ANSF_MEDIA_PATH,$DiskOption \
 	$XDISK_OPTS \
 	--serial file,path=$SERIAL_PATH --serial pty \
 	--network $VM_NET_OPT_EXTERNAL --network $VM_NET_OPT_INTERNAL \
@@ -508,12 +524,16 @@ export LIBGUESTFS_BACKEND=direct
 # =======================================================================
 virtcat() {
 	local vm=$1 dev=$2 file=$3 ret=0
+
 	if virt-cat --help|grep -q .--mount; then
 		virt-cat -d $vm -m $dev $file
 		ret=$?
 	else
+		local ansf=
+		[[ -f $ANSF_FLOPPY ]] && ansf=$ANSF_FLOPPY
+		[[ -f $ANSF_USB ]] && ansf=$ANSF_USB
 		local tmp_mp=$(mktemp -d)
-		mount -oro,loop $ANSF_FLOPPY $tmp_mp
+		mount -oro,loop $ansf $tmp_mp
 		cat $tmp_mp/$file
 		ret=$?
 		umount $tmp_mp; \rm -rf $tmp_mp

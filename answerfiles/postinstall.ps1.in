@@ -40,12 +40,12 @@ Get-Disk |
 	Format-Volume -FileSystem FAT32 -NewFileSystemLabel "test" -Confirm:$false
 
 $LogPath = "C:"
+
 $TestPath = "C:"
-if (Test-Path -Path E:) {
-	$LogPath = "E:"
+if (Test-Path -Path F:) {
+	$TestPath = "F:"
+} elseif (Test-Path -Path E:) {
 	$TestPath = "E:"
-} elseif (Test-Path -Path A:) {
-	$LogPath = "A:"
 }
 
 $PostProg = "@ANSF_DRIVE_LETTER@\postinstall.ps1"
@@ -107,9 +107,12 @@ if ($OpenSSHUrl) {
 # complete
 Out-Host "`n==> install complete!!!"
 echo "install complete" | out-file -encoding utf8 $LogPath\@INSTALL_COMPLETE_FILE@
-if ($LogPath -ne "C:") {
-	Copy-Item -Path $LogPath\* -Destination C:\
-	Copy-Item -Path @POST_INSTALL_LOG@ -Destination $LogPath\
+foreach ($dir in ("A:", "F:", "E:")) {
+	if (Test-Path -Path $dir) {
+		Copy-Item -Path $LogPath\@INSTALL_COMPLETE_FILE@ -Destination $dir\
+		Copy-Item -Path $LogPath\@IPCONFIG_LOGF@ -Destination $dir\
+		Copy-Item -Path @POST_INSTALL_LOG@ -Destination $dir\
+	}
 }
 
 taskkill /F /IM explorer.exe
