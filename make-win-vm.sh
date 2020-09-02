@@ -186,7 +186,7 @@ Usage: $PROG [OPTION]...
   --os-variant  <win2k12|win2k12r2|win2k16|win10|win7|...>
 		#*Use command 'virt-install --os-variant list' to get accepted OS variants
                 #*or Use command "osinfo-query os" *after RHEL-6 (yum install libosinfo)
-  -t --ans-file-media-type <cdrom|floppy>
+  -t --ans-file-media-type <cdrom|floppy|usb>
 		#Specify the answerfiles media type loaded to KVM.
   -b, --bridge  #Use traditional bridge interface br0. Not recommended.
   --timeout <>  #Set waiting timeout for installation.
@@ -407,6 +407,7 @@ VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139,mac=$VM_INT_MAC"
 
 # VM disk parameters ...
 ANSF_MEDIA_TYPE=${ANSF_MEDIA_TYPE:-usb}
+
 ANSF_CDROM=$VM_PATH/$VM_NAME-ansf-cdrom.iso
 ANSF_FLOPPY=$VM_PATH/$VM_NAME-ansf-floppy.vfd
 ANSF_USB=$VM_PATH/$VM_NAME-ansf-usb.image
