@@ -125,7 +125,7 @@ create_vdisk() {
 	local dev=$(losetup --partscan --show --find $path)
 	printf "o\nn\np\n1\n\n\nw\n" | fdisk "$dev"
 	mkfs.$fstype "${dev}p1"
-	echo "${dev} ${dev}p1"
+	losetup -d $dev
 }
 
 is_available_url() { curl --connect-timeout 8 -m 16 --output /dev/null --silent --head --fail $1 &>/dev/null; }
@@ -186,7 +186,7 @@ Usage: $PROG [OPTION]...
   --os-variant  <win2k12|win2k12r2|win2k16|win10|win7|...>
 		#*Use command 'virt-install --os-variant list' to get accepted OS variants
                 #*or Use command "osinfo-query os" *after RHEL-6 (yum install libosinfo)
-  -t --ans-file-media-type <cdrom|floppy|usb>
+  -t --ans-file-media-type <cdrom|floppy>
 		#Specify the answerfiles media type loaded to KVM.
   -b, --bridge  #Use traditional bridge interface br0. Not recommended.
   --timeout <>  #Set waiting timeout for installation.
@@ -407,7 +407,6 @@ VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139,mac=$VM_INT_MAC"
 
 # VM disk parameters ...
 ANSF_MEDIA_TYPE=${ANSF_MEDIA_TYPE:-usb}
-
 ANSF_CDROM=$VM_PATH/$VM_NAME-ansf-cdrom.iso
 ANSF_FLOPPY=$VM_PATH/$VM_NAME-ansf-floppy.vfd
 ANSF_USB=$VM_PATH/$VM_NAME-ansf-usb.image
@@ -490,8 +489,9 @@ case "$ANSF_MEDIA_TYPE" in
 	ANSF_MEDIA_PATH=$ANSF_USB
 	ANSF_DRIVE_LETTER="D:"
 	usbSize=64M
-	stdout=$(create_vdisk $ANSF_USB ${usbSize} vfat)
-	read dev part_dev < <(echo "$stdout"|tail -1)
+	create_vdisk $ANSF_USB ${usbSize} vfat
+	dev=$(losetup --partscan --show --find $ANSF_USB)
+	part_dev=${dev}p1
 	mount -t vfat $part_dev $media_mp
 	process_ansf $media_mp "$@"
 	umount $media_mp
