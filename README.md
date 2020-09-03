@@ -66,7 +66,7 @@ sudo yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noa
 ```
 ```
 sudo yum install libvirt libvirt-client virt-install virt-viewer qemu-kvm genisoimage libguestfs-tools \
-libguestfs-tools-c openldap-clients dos2unix unix2dos glibc-common libguestfs-winsupport unix2dos
+libguestfs-tools-c openldap-clients dos2unix unix2dos glibc-common libguestfs-winsupport expect
 ```
 
 ## Steps:
