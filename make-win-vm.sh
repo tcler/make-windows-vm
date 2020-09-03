@@ -128,6 +128,35 @@ create_vdisk() {
 	losetup -d $dev
 }
 
+mount_vdisk() {
+	local path=$1
+	local mp=$2
+	local partN=${3:-1}
+	local offset=$(fdisk -l -o Start "$path" |
+		awk -v N=$partN '
+			/^Units:/ { unit=$(NF-1); offset=0; }
+			/^Start/ {
+				for(i=0;i<N;i++)
+					if(getline == 0) { $0=""; break; }
+				offset=$1*unit;
+			}
+			END { print offset; }'
+	)
+	echo "offset: $offset"
+
+	[[ -d "$mp" ]] || {
+		echo "{warn} mount_vdisk: dir '$mp' not exist"
+		return 1
+	}
+
+	if [[ "$offset" -ne 0 || "$partN" -eq 1 ]]; then
+		mount $MNT_OPT -oloop,offset=$offset $path $mp
+	else
+		echo "{warn} mount_vdisk: there's not part($partN) on disk $path"
+		return 1
+	fi
+}
+
 is_available_url() { curl --connect-timeout 8 -m 16 --output /dev/null --silent --head --fail $1 &>/dev/null; }
 is_intranet() { is_available_url http://download.devel.redhat.com; }
 
@@ -186,7 +215,7 @@ Usage: $PROG [OPTION]...
   --os-variant  <win2k12|win2k12r2|win2k16|win10|win7|...>
 		#*Use command 'virt-install --os-variant list' to get accepted OS variants
                 #*or Use command "osinfo-query os" *after RHEL-6 (yum install libosinfo)
-  -t --ans-file-media-type <cdrom|floppy>
+  -t --ans-file-media-type <cdrom|floppy|usb>
 		#Specify the answerfiles media type loaded to KVM.
   -b, --bridge  #Use traditional bridge interface br0. Not recommended.
   --timeout <>  #Set waiting timeout for installation.
@@ -490,13 +519,9 @@ case "$ANSF_MEDIA_TYPE" in
 	ANSF_DRIVE_LETTER="D:"
 	usbSize=64M
 	create_vdisk $ANSF_USB ${usbSize} vfat
-	dev=$(losetup --partscan --show --find $ANSF_USB)
-	part_dev=${dev}p1
-	mount -t vfat $part_dev $media_mp
+	mount_vdisk $ANSF_USB $media_mp
 	process_ansf $media_mp "$@"
 	umount $media_mp
-	losetup -d $dev
-	#qemu-img convert -f raw -O qcow2 $ANSF_USB $ANSF_USB
 	DiskOption=bus=usb,format=raw,removable=on
 	;;
 esac
@@ -553,20 +578,13 @@ virtcat() {
 		ret=$?
 	else
 		local ansf=
-		[[ -f $ANSF_FLOPPY ]] && {
-			_dev=$(losetup --partscan --show --find $ANSF_FLOPPY)
-			ansf=$_dev
-		}
-		[[ -f $ANSF_USB ]] && {
-			_dev=$(losetup --partscan --show --find $ANSF_USB)
-			ansf=${_dev}p1
-		}
+		[[ -f $ANSF_FLOPPY ]] && ansf=$ANSF_FLOPPY
+		[[ -f $ANSF_USB ]] && ansf=$ANSF_USB
 		local tmp_mp=$(mktemp -d)
-		mount -oro $ansf $tmp_mp
+		MNT_OPT=-oro mount_vdisk $ansf $tmp_mp
 		cat $tmp_mp/$file
 		ret=$?
 		umount $tmp_mp; \rm -rf $tmp_mp
-		losetup -d $_dev
 	fi
 	return $ret
 }
