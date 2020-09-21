@@ -547,6 +547,19 @@ echo $VNCPORT >$VM_PATH/vncport
 echo -e "\tvncviewer $VIRTHOST:$VNCPORT #"
 
 # =======================================================================
+# Workaround for Bug 1867527 - libvirt: Guest startup broken when dm_mod is not loaded
+# =======================================================================
+echo -e "\n{INFO} Workaround for Bug 1867527"
+if ! lsmod | grep -q dm_mod; then
+	echo -e "\n{INFO} No dm_mod module loaded, loading..."
+	if modprobe dm_mod && lsmod | grep -q dm_mod; then
+		echo -e "\n{INFO} Load dm_mod module successfully"
+	else
+		echo -e "\n{INFO} Load dm_mod module failed"
+	fi
+fi
+
+# =======================================================================
 # Execute virt-install command with the parameters given
 # =======================================================================
 echo -e "\n{INFO} virt-install ..."
