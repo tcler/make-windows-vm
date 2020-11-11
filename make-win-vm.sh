@@ -157,8 +157,6 @@ Options for windows anwserfile:
 		#The domain functional level cannot be lower than the forest functional level,
 		#but it can be higher. The default is automatically computed and set.
 		#see: https://docs.microsoft.com/en-us/powershell/module/addsdeployment/install-addsforest?view=win10-ps
-  -t, --ans-file-media-type <cdrom|floppy|usb>
-		#Specify the answerfiles media type loaded to KVM.
   --enable-kdc  #enable AD KDC service(in case use answerfiles-cifs-nfs/postinstall.ps1)
 		#- to do nfs/cifs krb5 test
   --parent-domain <parent-domain>
@@ -198,7 +196,7 @@ Examples:
 EOF
 }
 
-ARGS=$(getopt -o hu:p:t:f \
+ARGS=$(getopt -o hu:p:f \
 	--long help \
 	--long image: \
 	--long wim-index: \
@@ -212,7 +210,6 @@ ARGS=$(getopt -o hu:p:t:f \
 	--long cpus: \
 	--long disk-size: \
 	--long os-variant: \
-	--long ans-file-media-type: \
 	--long timeout: \
 	--long vncport: \
 	--long check-ad \
@@ -245,7 +242,6 @@ while true; do
 	--cpus) VM_CPUS="$2"; shift 2;;
 	--disk-size) VM_DISKSIZE="$2"; shift 2;;
 	--os-variant) VM_OS_VARIANT="$2"; shift 2;;
-	-t|--ans-file-media-type) ANSF_MEDIA_TYPE="$2"; shift 2;;
 	--timeout) VM_TIMEOUT="$2"; shift 2;;
 	--vncport) VNCPORT="$2"; shift 2;;
 	--check-ad) CHECK_AD="yes"; shift 1;;
@@ -362,9 +358,6 @@ echo -e "\n{INFO} vm nic for inside network(mac: $VM_INT_MAC) ..."
 VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139,mac=$VM_INT_MAC"
 
 # VM disk parameters ...
-ANSF_MEDIA_TYPE=${ANSF_MEDIA_TYPE:-usb}
-ANSF_CDROM=$VM_PATH/$VM_NAME-ansf-cdrom.iso
-ANSF_FLOPPY=$VM_PATH/$VM_NAME-ansf-floppy.vfd
 ANSF_USB=$VM_PATH/$VM_NAME-ansf-usb.image
 VM_IMAGE=$VM_PATH/$VM_NAME.qcow2
 SERIAL_PATH=/tmp/serial-$(date +%Y%m%d%H%M%S).$$
@@ -376,7 +369,7 @@ fi
 VM_RAM=${VM_RAM:-4096}
 
 # ====================================================================
-# Generate cdrom/floppy of answerfiles
+# Generate answerfiles media(USB)
 # ====================================================================
 process_ansf() {
 	local destdir=$1; shift
@@ -416,42 +409,16 @@ eval ls "$@" || {
 	echo -e "\n{ERROR} answer files $@ is not exist"
 	exit 1
 }
-rpm -q libguestfs-winsupport || ANSF_MEDIA_TYPE=usb  #workaround for system without libguestfs-winsupport
-virt-cat --help|grep -q .--mount || ANSF_MEDIA_TYPE=usb  #workaround for old libguestfs-tools-c(on RHEL-6)
-\rm -f $ANSF_FLOPPY $ANSF_CDROM $ANSF_USB #remove old/exist media file
+\rm -f $ANSF_USB #remove old/exist media file
 media_mp=$(mktemp -d)
-case "$ANSF_MEDIA_TYPE" in
-"floppy")
-	ANSF_MEDIA_PATH=$ANSF_FLOPPY
-	ANSF_DRIVE_LETTER="A:"
-	mkfs.vfat -C $ANSF_FLOPPY 1440 || { echo error $? from mkfs.vfat -C $ANSF_FLOPPY 1440; exit 1; }
-	mount -o loop -t vfat $ANSF_FLOPPY $media_mp
-	process_ansf $media_mp "$@"
-	umount $media_mp
-	DiskOption=device=floppy
-	;;
-"cdrom")
-	ANSF_MEDIA_PATH=$ANSF_CDROM
-	ANSF_DRIVE_LETTER="E:"
-	process_ansf $media_mp "$@"
-	genisoimage -iso-level 4 -J -l -R -o $ANSF_CDROM $media_mp
-	DiskOption=device=cdrom
-	XDISK=yes
-	[[ -z "$EXTRA_DISK" ]] && {
-		EXTRA_DISK=$VM_PATH/out.qcow2
-	}
-	;;
-"usb")
-	ANSF_MEDIA_PATH=$ANSF_USB
-	ANSF_DRIVE_LETTER="D:"
-	usbSize=64M
-	create_vdisk $ANSF_USB ${usbSize} vfat
-	mount_vdisk $ANSF_USB $media_mp
-	process_ansf $media_mp "$@"
-	umount $media_mp
-	DiskOption=bus=usb,format=raw,removable=on
-	;;
-esac
+ANSF_MEDIA_PATH=$ANSF_USB
+ANSF_DRIVE_LETTER="D:"
+usbSize=64M
+create_vdisk $ANSF_USB ${usbSize} vfat
+mount_vdisk $ANSF_USB $media_mp
+process_ansf $media_mp "$@"
+umount $media_mp
+DiskOption=bus=usb,format=raw,removable=on
 \rm -rf $media_mp
 
 echo -e "\n{INFO} copy iso file # ..."
@@ -518,8 +485,7 @@ virtcat() {
 		ret=$?
 	else
 		local ansf=
-		[[ -f $ANSF_FLOPPY ]] && ansf=$ANSF_FLOPPY
-		[[ -f $ANSF_USB ]] && ansf=$ANSF_USB
+		ansf=$ANSF_USB
 		local tmp_mp=$(mktemp -d)
 		MNT_OPT=-oro mount_vdisk $ansf $tmp_mp
 		cat $tmp_mp/$file
@@ -530,10 +496,7 @@ virtcat() {
 }
 echo -e "\n{INFO} waiting install done ...\n\tvncviewer $VIRTHOST:$VNCPORT"
 
-fsdev=/dev/sdb1
-[[ "$ANSF_MEDIA_TYPE" = floppy ]] && fsdev=/dev/sdc
-[[ "$ANSF_MEDIA_TYPE" = usb ]] && fsdev=/dev/sdc1
-[[ "$XDISK" = yes ]] && fsdev=/dev/sdd1
+fsdev=/dev/sdc1
 for ((i=0; i<=VM_TIMEOUT; i++)) ; do
 	virtcat $VM_NAME $fsdev /$INSTALL_COMPLETE_FILE &>/dev/null && break
 	sleep 1m

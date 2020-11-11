@@ -23,7 +23,6 @@
 | --product-key <>             |                     | Conditionally | Mandatory when not using evaluation versions |
 | -p, --password <>            | Sesame~0pen         | No            |                                              |
 | --ram <>                     | 2048                | No            |                                              |
-| -t, --ans-file-media-type <> | floppy              | No            |                                              |
 | --timeout <>                 | 60                  | No            |                                              |
 | -u, --user <>                | Administrator       | No            |                                              |
 | --vm-name <>                 |                     | Yes           |                                              |
@@ -126,12 +125,6 @@ Specify windows login password. Note that the password can't be too weak or the 
 
 **--ram**  
 Specify size of RAM for VM in MB.  
-
-**-t, --ans-file-media-type**  
-Answer files media is used to store answer files mentioned above and put them into windows so the 
-deployment can start. There are two types of them:
-- floppy
-- cdrom  
 
 **--timeout**  
 Set timeout for windows installation in minutes.  
