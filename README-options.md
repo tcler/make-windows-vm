@@ -7,7 +7,6 @@
 | :--------------------------: | :-----------------: | :-----------: | :------------------------------------------: |
 | --ad-forest-level <>         | Default             | No            |                                              |
 | --ad-domain-level <>         | Default             | No            |                                              |
-| -b, --bridge                 |                     | No            |                                              |
 | --cpus <>                    | 2                   | No            |                                              |
 | --check-ad                   |                     | No            |                                              |
 | --disk-size <>               |                     | Yes           |                                              |
@@ -58,13 +57,6 @@ Windows Server 2008 R2 when you create a new forest is Windows Server 2003 or 2
 
 The domain functional level cannot be lower than the forest functional level, 
 but it can be higher. The default is automatically computed and set.  
-
-**-b, --bridge**  
-Use traditional bridge interface br0 instead of default macvtap interface. This is 
-useful when you have to deploy two or more windows on one physical machine. It's because 
-the default macvtap wouldn't allow windows vm to communicate with each other when they 
-are running on the same machine in most cases. But be aware that traditional bridge 
-brings performance loss.  
 
 **--cpus**  
 Numbers of cpu cores for VM.  

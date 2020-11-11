@@ -26,72 +26,6 @@ get_default_if() {
 	echo $iface
 }
 
-add_bridge() {
-	local brname=$1
-
-	if [[ -f /etc/init.d/network ]]; then
-		local net_script_path=/etc/sysconfig/network-scripts
-		echo -e "TYPE=Bridge\nBOOTPROTO=dhcp\nDEVICE=$brname\nONBOOT=yes" \
-			> $net_script_path/ifcfg-$brname
-	else
-		ip link add $brname type bridge
-	fi
-}
-
-add_if_to_bridge() {
-	local iface=$1
-	local brname=$2
-
-	if [[ -f /etc/init.d/network ]]; then
-		local net_script_path=/etc/sysconfig/network-scripts
-		echo "[${FUNCNAME[0]}] br addif($brname $iface) and restart network service ..."
-		grep -q "^ *BRIDGE=$brname" $net_script_path/ifcfg-$iface || {
-			echo "BRIDGE=$brname" >>$net_script_path/ifcfg-$iface
-		}
-		service network restart
-	else
-		echo "[${FUNCNAME[0]}] br addif($brname $iface) and up by dhclient ..."
-		ip link set $iface master $brname
-		dhclient $brname
-	fi
-}
-
-create_bridge() {
-	local brname=${1:-br0}
-
-	if is_bridge $brname; then
-		local iface=$(get_default_if notbr)
-		echo "[${FUNCNAME[0]}] bridge $brname exist"
-		add_if_to_bridge $iface $brname
-	else
-		local iface=$(get_default_if)
-		echo "[${FUNCNAME[0]}] creating bridge($brname $iface) ..."
-		add_bridge $brname
-		add_if_to_bridge $iface $brname
-	fi
-	echo
-	{ brctl show $brname || ip link show $brname type bridge; } 2>/dev/null
-}
-
-br_delif() {
-	local br=$(get_default_if)
-
-	if is_bridge $br; then
-		local dev=$(get_default_if notbr)
-		if [[ -f /etc/init.d/network ]]; then
-			echo "[${FUNCNAME[0]}] remove if from br($dev $br) and restart network service ..."
-			sed -i "/BRIDGE=$br *$/d" $net_script_path/ifcfg-$dev
-			service network restart
-		else
-			echo "[${FUNCNAME[0]}] remove if from br($dev $br) and up by dhclient ..."
-			ip link set $dev promisc off
-			ip link set $dev down
-			ip link set dev $dev nomaster
-			dhclient $dev
-		fi
-	fi
-}
-
 # Generate a random mac address with 54:52:00: prefix
 gen_virt_mac() {
     echo 54:52:00:${1:-00}$(od -txC -An -N2 /dev/random | tr \  :)
@@ -167,14 +101,31 @@ Usage() {
 cat <<EOF
 Usage: $PROG [OPTION]...
 
+Options for vm:
   -h, --help    #Display this help.
 
   --image </path/to/image>
 		#*Specify the path to windows image.
-  --wim-index <wim image index>
-  --product-key #Prodcut key for windows activation.
   --hostname <hostname>
 		#hostname of windows
+
+  --vm-name|--vmname <VM_NAME>
+		#*Specify the vm guest's name.
+  --ram <>      #VM's ram size
+  --cpus <>     #Numbers of cpu cores for VM.
+  --disk-size <>#VM disk size, in .qcow2 format.
+  --os-variant  <win2k12|win2k12r2|win2k16|win10|win7|...>
+		#*Use command 'virt-install --os-variant list' to get accepted OS variants
+                #*or Use command "osinfo-query os" *after RHEL-6 (yum install libosinfo)
+  --timeout <>  #Set waiting timeout for installation.
+  --vncport <>  #Set vncport
+  --check-ad    #do ad connection test after install complete
+  --vmshome <>  #folder to save vm dir/images
+  -f, --force	#Force to set vm-name, regardless whether the name is in use or not.
+
+Options for windows anwserfile:
+  --wim-index <wim image index>
+  --product-key #Prodcut key for windows activation.
   --domain <domain>
 		#*Specify windows domain name.
   -u, --user <user>
@@ -206,22 +157,8 @@ Usage: $PROG [OPTION]...
 		#The domain functional level cannot be lower than the forest functional level,
 		#but it can be higher. The default is automatically computed and set.
 		#see: https://docs.microsoft.com/en-us/powershell/module/addsdeployment/install-addsforest?view=win10-ps
-
-  --vm-name|--vmname <VM_NAME>
-		#*Specify the vm guest's name.
-  --ram <>      #VM's ram size
-  --cpus <>     #Numbers of cpu cores for VM.
-  --disk-size <>#VM disk size, in .qcow2 format.
-  --os-variant  <win2k12|win2k12r2|win2k16|win10|win7|...>
-		#*Use command 'virt-install --os-variant list' to get accepted OS variants
-                #*or Use command "osinfo-query os" *after RHEL-6 (yum install libosinfo)
-  -t --ans-file-media-type <cdrom|floppy|usb>
+  -t, --ans-file-media-type <cdrom|floppy|usb>
 		#Specify the answerfiles media type loaded to KVM.
-  -b, --bridge  #Use traditional bridge interface br0. Not recommended.
-  --timeout <>  #Set waiting timeout for installation.
-  --vncport <>  #Set vncport
-  --check-ad    #do ad connection test after install complete
-  --vmshome <>  #folder to save vm dir/images
   --enable-kdc  #enable AD KDC service(in case use answerfiles-cifs-nfs/postinstall.ps1)
 		#- to do nfs/cifs krb5 test
   --parent-domain <parent-domain>
@@ -232,22 +169,21 @@ Usage: $PROG [OPTION]...
 		#The specified cifs share will be added into dfs target.
   --openssh <url>
 		#url to download OpenSSH-Win64.zip
-  --overwrite	#Force to set vm-name, regardless whether the name is in use or not.
 
 Examples:
   #Setup Active Directory forest Win2012r2:
   ./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2.iso --os-variant win2k12r2 \
     --product-key W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9 --vmname rootds --domain ad.test -p ~Ocgxyz --cpus 2 \
-    --ram 2048 --disk-size 20 -b --vncport 7777 --ad-forest-level Win2012R2  ./answerfiles-addsforest/*
+    --ram 2048 --disk-size 20 --vncport 7777 --ad-forest-level Win2012R2  ./answerfiles-addsforest/*
 
   ./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2-Evaluation.iso \
     --os-variant win2k12r2 --vmname rootds --domain kernel.test -p ~Ocgabc \
-    --cpus 2 --ram 2048 --disk-size 20 -b --vncport 7788 ./answerfiles-addsforest/*
+    --cpus 2 --ram 2048 --disk-size 20 --vncport 7788 ./answerfiles-addsforest/*
 
   #Setup Active Directory child domain:
   ./make-win-vm.sh --image /var/lib/libvirt/images/Win2016-Evaluation.iso \
     --os-variant win2k16 --vmname child --parent-domain kernel.test --domain fs  -p ~Ocgxyz \
-    --cpus 2 --ram 2048 --disk-size 20 -b --vncport 7789 ./answerfiles-addsdomain/* --parent-ip \$addr
+    --cpus 2 --ram 2048 --disk-size 20 --vncport 7789 ./answerfiles-addsdomain/* --parent-ip \$addr
 
   #Setup Windows as NFS/CIFS server, and enable KDC(--enable-kdc):
   ./make-win-vm.sh --image /var/lib/libvirt/images/Win2019-Evaluation.iso \
@@ -262,7 +198,7 @@ Examples:
 EOF
 }
 
-ARGS=$(getopt -o hu:p:t:bf \
+ARGS=$(getopt -o hu:p:t:f \
 	--long help \
 	--long image: \
 	--long wim-index: \
@@ -277,7 +213,6 @@ ARGS=$(getopt -o hu:p:t:bf \
 	--long disk-size: \
 	--long os-variant: \
 	--long ans-file-media-type: \
-	--long bridge \
 	--long timeout: \
 	--long vncport: \
 	--long check-ad \
@@ -288,7 +223,7 @@ ARGS=$(getopt -o hu:p:t:bf \
 	--long parent-ip: \
 	--long openssh: \
 	--long dfs-target: \
-	--long overwrite --long force\
+	--long force --long overwrite \
 	--long user: \
 	--long xdisk \
 	-a -n "$PROG" -- "$@")
@@ -311,7 +246,6 @@ while true; do
 	--disk-size) VM_DISKSIZE="$2"; shift 2;;
 	--os-variant) VM_OS_VARIANT="$2"; shift 2;;
 	-t|--ans-file-media-type) ANSF_MEDIA_TYPE="$2"; shift 2;;
-	-b|--bridge) NetMode=bridge; shift 1;;
 	--timeout) VM_TIMEOUT="$2"; shift 2;;
 	--vncport) VNCPORT="$2"; shift 2;;
 	--check-ad) CHECK_AD="yes"; shift 1;;
@@ -321,7 +255,7 @@ while true; do
 	--parent-ip) PARENT_IP="$2"; shift 2;;
 	--openssh) OpenSSHUrl="$2"; shift 2;;
 	--dfs-target) DFS_TARGET="$2"; shift 2;;
-	--overwrite|--force|-f) OVERWRITE="yes"; shift 1;;
+	-f|--force|--overwrite) OVERWRITE="yes"; shift 1;;
 	--xdisk) XDISK="yes"; shift 1;;
 	--) shift; break;;
 	*) Usage; exit 1;; 
@@ -415,19 +349,12 @@ service virtlogd start
 }
 
 # VM network parameters
-NetMode=${NetMode:-macvtap}
-[[ "$NetMode" = macvtap ]] && MacvtapMode=vepa
+NetMode=macvtap
+[[ "$NetMode" = macvtap ]] && MacvtapMode=bridge
 VM_EXT_MAC=$(gen_virt_mac 01)
-BR_NAME=br0
 echo -e "\n{INFO} vm nic for reach outside network(mac: $VM_EXT_MAC) (NetMode:$NetMode) ..."
-if [[ "$NetMode" = macvtap ]]; then
-	br_delif
-	DEFAULT_NIC=$(get_default_if dev)
-	VM_NET_OPT_EXTERNAL="type=direct,source=$DEFAULT_NIC,source_mode=$MacvtapMode,mac=$VM_EXT_MAC"
-else
-	create_bridge $BR_NAME
-	VM_NET_OPT_EXTERNAL="bridge=$BR_NAME,model=rtl8139,mac=$VM_EXT_MAC"
-fi
+DEFAULT_NIC=$(get_default_if dev)
+VM_NET_OPT_EXTERNAL="type=direct,source=$DEFAULT_NIC,source_mode=$MacvtapMode,mac=$VM_EXT_MAC"
 
 VM_NET_NAME=default
 VM_INT_MAC=$(gen_virt_mac)

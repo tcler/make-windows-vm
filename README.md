@@ -83,17 +83,17 @@ libguestfs-tools-c openldap-clients dos2unix unix2dos glibc-common libguestfs-wi
 ```
 ./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2.iso --os-variant win2k12r2 \
     --product-key W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9 --vm-name rootds --domain ad.test -p ~Ocgxyz --cpus 2 \
-    --ram 2048 --disk-size 20 -b --vncport 7777 --ad-forest-level Win2012R2  ./answerfiles-addsforest/*
+    --ram 2048 --disk-size 20 --vncport 7777 --ad-forest-level Win2012R2  ./answerfiles-addsforest/*
 
 ./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2-Evaluation.iso \
     --os-variant win2k12r2 --vm-name rootds --domain kernel.test -p ~Ocgabc \
-    --cpus 2 --ram 2048 --disk-size 20 -b --vncport 7788 ./answerfiles-addsforest/*
+    --cpus 2 --ram 2048 --disk-size 20 --vncport 7788 ./answerfiles-addsforest/*
 ```
 ##### Setup Active Directory child domain:
 ```
 ./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2-Evaluation.iso \
     --os-variant win2k12r2 --vm-name child --parent-domain kernel.test --domain fs  -p ~Ocgxyz \
-    --cpus 2 --ram 2048 --disk-size 20 -b --vncport 7789 ./answerfiles-addsdomain/* --parent-ip $addr
+    --cpus 2 --ram 2048 --disk-size 20 --vncport 7789 ./answerfiles-addsdomain/* --parent-ip $addr
 ```
 ##### Setup Windows as NFS/CIFS server:
 ```
