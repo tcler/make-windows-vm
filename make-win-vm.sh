@@ -427,9 +427,7 @@ echo -e "\n{INFO} copy iso file # ..."
 
 if [[ "$XDISK" = yes ]]; then
 	echo -e "\n{INFO} make extra test disk ..."
-	qemu-img create -f raw $EXTRA_DISK 4G
-	mkfs.vfat $EXTRA_DISK
-	qemu-img convert -f raw -O qcow2 $EXTRA_DISK $EXTRA_DISK
+	qemu-img create -f qcow2 $EXTRA_DISK 4G
 	XDISK_OPTS="--disk path=$EXTRA_DISK,bus=sata"
 fi
 
