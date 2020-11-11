@@ -122,6 +122,7 @@ Options for vm:
   --check-ad    #do ad connection test after install complete
   --vmshome <>  #folder to save vm dir/images
   -f, --force	#Force to set vm-name, regardless whether the name is in use or not.
+  --net <>	#libvirt network name, default value: 'default'
 
 Options for windows anwserfile:
   --wim-index <wim image index>
@@ -209,6 +210,7 @@ ARGS=$(getopt -o hu:p:f \
 	--long ram: \
 	--long cpus: \
 	--long disk-size: \
+	--long net: \
 	--long os-variant: \
 	--long timeout: \
 	--long vncport: \
@@ -241,6 +243,7 @@ while true; do
 	--ram) VM_RAM="$2"; shift 2;;
 	--cpus) VM_CPUS="$2"; shift 2;;
 	--disk-size) VM_DISKSIZE="$2"; shift 2;;
+	--net) VNET_NAME="$2"; shift 2;;
 	--os-variant) VM_OS_VARIANT="$2"; shift 2;;
 	--timeout) VM_TIMEOUT="$2"; shift 2;;
 	--vncport) VNCPORT="$2"; shift 2;;
@@ -352,7 +355,7 @@ echo -e "\n{INFO} vm nic for reach outside network(mac: $VM_EXT_MAC) (NetMode:$N
 DEFAULT_NIC=$(get_default_if dev)
 VM_NET_OPT_EXTERNAL="type=direct,source=$DEFAULT_NIC,source_mode=$MacvtapMode,mac=$VM_EXT_MAC"
 
-VM_NET_NAME=default
+VM_NET_NAME=${VNET_NAME:-default}
 VM_INT_MAC=$(gen_virt_mac)
 echo -e "\n{INFO} vm nic for inside network(mac: $VM_INT_MAC) ..."
 VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139,mac=$VM_INT_MAC"
