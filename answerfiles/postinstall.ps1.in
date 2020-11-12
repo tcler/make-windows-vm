@@ -65,6 +65,18 @@ Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' 
 #Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 0
 
 # saving network connection details
+$INT_STATIC_IP = "@INT_STATIC_IP@"
+$EXT_STATIC_IP = "@EXT_STATIC_IP@"
+if ($INT_STATIC_IP) {
+	$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@VNIC_INT_MAC@'")
+	$oAddr = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $Nic.InterfaceIndex)
+	New-NetIPAddress -InterfaceIndex $Nic.InterfaceIndex -AddressFamily IPv4 -IPAddress $INT_STATIC_IP -PrefixLength $oAddr.PrefixLength -DefaultGateway $Nic.DefaultIPGateway.Item(0)
+}
+if ($EXT_STATIC_IP) {
+	$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@VNIC_EXT_MAC@'")
+	$oAddr = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $Nic.InterfaceIndex)
+	New-NetIPAddress -InterfaceIndex $Nic.InterfaceIndex -AddressFamily IPv4 -IPAddress $INT_STATIC_IP -PrefixLength $oAddr.PrefixLength -DefaultGateway $Nic.DefaultIPGateway.Item(0)
+}
 Out-Host "`n==> save ipconfig info"
 ipconfig | out-file -encoding utf8 $LogPath\@IPCONFIG_LOGF@
 

@@ -125,6 +125,10 @@ Options for vm:
   --vmshome <>  #folder to save vm dir/images
   -f, --force	#Force to set vm-name, regardless whether the name is in use or not.
   --net <>	#libvirt network name, default value: 'default'
+  --static-ip-ext <>
+		#set static ip for the nic that connect to public network
+  --static-ip-int <>
+		#set static ip for the nic that connect to internal libvirt network
 
 Options for windows anwserfile:
   --wim-index <wim image index>
@@ -213,6 +217,8 @@ ARGS=$(getopt -o hu:p:f \
 	--long cpus: \
 	--long disk-size: \
 	--long net: \
+	--long static-ip-ext: \
+	--long static-ip-int: \
 	--long os-variant: \
 	--long timeout: \
 	--long vncport: \
@@ -246,6 +252,8 @@ while true; do
 	--cpus) VM_CPUS="$2"; shift 2;;
 	--disk-size) VM_DISKSIZE="$2"; shift 2;;
 	--net) VNET_NAME="$2"; shift 2;;
+	--static-ip-ext) EXT_STATIC_IP="$2"; shift 2;;
+	--static-ip-int) INT_STATIC_IP="$2"; shift 2;;
 	--os-variant) VM_OS_VARIANT="$2"; shift 2;;
 	--timeout) VM_TIMEOUT="$2"; shift 2;;
 	--vncport) VNCPORT="$2"; shift 2;;
@@ -395,6 +403,8 @@ process_ansf() {
 		-e "s/@AD_DOMAIN_LEVEL@/$AD_DOMAIN_LEVEL/g" \
 		-e "s/@VNIC_INT_MAC@/$VNIC_INT_MAC/g" \
 		-e "s/@VNIC_EXT_MAC@/$VNIC_EXT_MAC/g" \
+		-e "s/@INT_STATIC_IP@/$INT_STATIC_IP/g" \
+		-e "s/@EXT_STATIC_IP@/$EXT_STATIC_IP/g" \
 		-e "s/@VIRTHOST@/$VIRTHOST/g" \
 		-e "s/@IPCONFIG_LOGF@/$IPCONFIG_LOGF/g" \
 		-e "s/@GUEST_HOSTNAME@/$GUEST_HOSTNAME/g" \
