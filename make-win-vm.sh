@@ -37,7 +37,9 @@ eject_cds() {
 	local media_list="$@"
 
 	for media in $media_list; do
-		vm_media=$(virsh domblklist "$vm_name" | awk -v media=$media '$2==media {print $1}')
+		_path=$(readlink -f ${media})
+		vm_media=$(virsh domblklist "$vm_name" | awk -v path=$_path '$2==path {print $1}')
+		echo -e "{INFO} eject [vm_media] -> $_path ..."
 		virsh change-media "$vm_name" "$vm_media" --eject
 	done
 }
@@ -471,39 +473,31 @@ virt-install --connect=qemu:///system --hvm --accelerate --cpu host \
 	--vnc --vnclisten 0.0.0.0 --vncport ${VNCPORT} || { echo error $? from virt-install ; exit 1 ; }
 \rm $SERIAL_PATH
 
-#virsh attach-disk $VM_NAME --subdriver raw $VMpath/test.raw vdc --current --targetbus usb
-
-# workaround for https://bugzilla.redhat.com/1043249
-export LIBGUESTFS_BACKEND=direct
-
 # =======================================================================
 # To check whether the installation is done
 # =======================================================================
-virtcat() {
-	local vm=$1 dev=$2 file=$3 ret=0
-
-	if virt-cat --help|grep -q .--mount; then
-		virt-cat -d $vm -m $dev $file
-		ret=$?
-	else
-		local ansf=
-		ansf=$ANSF_USB
-		local tmp_mp=$(mktemp -d)
-		MNT_OPT=-oro mount_vdisk $ansf $tmp_mp
-		cat $tmp_mp/$file
-		ret=$?
-		umount $tmp_mp; \rm -rf $tmp_mp
-	fi
+port_available() { nc $1 $2 </dev/null &>/dev/null; }
+logcat() {
+	local file=$1 ret=0
+	local ansf=
+	ansf=$ANSF_USB
+	local tmp_mp=$(mktemp -d)
+	MNT_OPT=-oro mount_vdisk $ansf $tmp_mp
+	cat $tmp_mp/$file 2>/dev/null
+	ret=$?
+	umount $tmp_mp; \rm -rf $tmp_mp
 	return $ret
 }
 echo -e "\n{INFO} waiting install done ...\n\tvncviewer $VIRTHOST:$VNCPORT"
-
-fsdev=/dev/sdc1
-for ((i=0; i<=VM_TIMEOUT; i++)) ; do
-	virtcat $VM_NAME $fsdev /$INSTALL_COMPLETE_FILE &>/dev/null && break
-	sleep 1m
+#ipaddr=$(virsh domifaddr "$VM_NAME" | awk '$3=="ipv4" {print gensub("/.*","",1,$4)}')
+#until port_available ${ipaddr} 22; do sleep 1; done   #nc check ssh port 22 ready
+timeouts=$((VM_TIMEOUT*60))
+timestep=10
+for ((i=0; i<=timeouts; i+=timestep)) ; do
+	logcat $INSTALL_COMPLETE_FILE &>/dev/null && break
+	sleep $timestep
 done
-((i > $VM_TIMEOUT)) && { echo -e "\n{WARN} Install timeout($VM_TIMEOUT)"; }
+((i > $timeouts)) && { echo -e "\n{WARN} Install timeout(${VM_TIMEOUT}m)"; }
 
 # =======================================================================
 # Post Setup
@@ -511,10 +505,10 @@ done
 
 # Get install and ipconfig log
 WIN_INSTALL_LOG=/tmp/$VM_NAME.install.log
-virtcat $VM_NAME $fsdev /$POST_INSTALL_LOGF |
+logcat $POST_INSTALL_LOGF |
 	iconv -f UTF-16LE -t UTF-8 - >$WIN_INSTALL_LOG
 WIN_IPCONFIG_LOG=/tmp/$VM_NAME.ipconfig.log
-virtcat $VM_NAME $fsdev /$IPCONFIG_LOGF >$WIN_IPCONFIG_LOG
+logcat $IPCONFIG_LOGF >$WIN_IPCONFIG_LOG
 dos2unix $WIN_INSTALL_LOG $WIN_IPCONFIG_LOG
 
 # Eject CDs

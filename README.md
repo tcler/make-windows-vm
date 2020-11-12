@@ -65,8 +65,8 @@ Generally, answerfiles are used to deploy windows automatically. Usages are list
 sudo yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 ```
 ```
-sudo yum install libvirt libvirt-client virt-install virt-viewer qemu-kvm genisoimage libguestfs-tools \
-libguestfs-tools-c openldap-clients dos2unix unix2dos glibc-common libguestfs-winsupport expect
+sudo yum install libvirt libvirt-client virt-install virt-viewer qemu-kvm genisoimage \
+ openldap-clients dos2unix unix2dos glibc-common expect
 ```
 
 ## Steps:
