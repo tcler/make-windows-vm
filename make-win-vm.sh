@@ -356,6 +356,7 @@ DEFAULT_NIC=$(get_default_if dev)
 VM_NET_OPT_EXTERNAL="type=direct,source=$DEFAULT_NIC,source_mode=$MacvtapMode,mac=$VM_EXT_MAC"
 
 VM_NET_NAME=${VNET_NAME:-default}
+HOST_IP=$(virsh net-dumpxml -- $VM_NET_NAME|sed -rn '/^ *<ip address=.([0-9.]+).*$/{s//\1/; p}')
 VM_INT_MAC=$(gen_virt_mac)
 echo -e "\n{INFO} vm nic for inside network(mac: $VM_INT_MAC) ..."
 VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139,mac=$VM_INT_MAC"
@@ -400,11 +401,11 @@ process_ansf() {
 		-e "s/@PARENT_DOMAIN@/$PARENT_DOMAIN/g" \
 		-e "s/@PARENT_IP@/$PARENT_IP/g" \
 		-e "s/@DFS_TARGET@/$DFS_TARGET/g" \
-		-e "s|@OpenSSHUrl@|$OpenSSHUrl|g" \
 		$destdir/*
 	unix2dos $destdir/* >/dev/null
 	[[ -z "$PRODUCT_KEY" ]] &&
 		sed -i '/<ProductKey>/ { :loop /<\/ProductKey>/! {N; b loop}; s;<ProductKey>.*</ProductKey>;; }' $destdir/*.xml
+	[[ -n "$OpenSSHUrl" ]] && while ! curl -L $OpenSSHUrl -f -o $destdir/OpenSSH.zip; do sleep 1; done
 }
 
 echo -e "\n{INFO} make answer file media ..."
@@ -416,7 +417,7 @@ eval ls "$@" || {
 media_mp=$(mktemp -d)
 ANSF_MEDIA_PATH=$ANSF_USB
 ANSF_DRIVE_LETTER="D:"
-usbSize=64M
+usbSize=512M
 create_vdisk $ANSF_USB ${usbSize} vfat
 mount_vdisk $ANSF_USB $media_mp
 process_ansf $media_mp "$@"

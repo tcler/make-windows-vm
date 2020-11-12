@@ -18,8 +18,8 @@ Function Unzip-File() {
 }
 
 Function Install-Sshd() {
-	param([string]$Url)
-	(new-object net.webclient).DownloadFile($Url, 'C:\OpenSSH.zip')
+	param([string]$Path)
+	Copy-Item -Path $Path -Destination 'C:\OpenSSH.zip'
 	Unzip-File -ZipFile 'C:\OpenSSH.zip' -TargetFolder 'C:\Program Files'
 	powershell -ExecutionPolicy Bypass -File 'C:\Program Files\OpenSSH-Win64\install-sshd.ps1'
 	New-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
@@ -85,7 +85,7 @@ reg add "HKLM\SOFTWARE\Policies\Control\Microsoft\Windows NT\Reliability" /v Shu
 # adding hostname for the virtual host
 Out-Host "`n==> add host's hostname to $Env:WinDir\system32\drivers\etc\hosts"
 echo "" >> $Env:WinDir\system32\drivers\etc\hosts
-echo "192.168.122.1 @VIRTHOST@" >> $Env:WinDir\system32\drivers\etc\hosts
+echo "@HOST_IP@ @VIRTHOST@" >> $Env:WinDir\system32\drivers\etc\hosts
 
 # disabling DNS registration on the network interface
 $MacDisable = "@MAC_DISABLE@"
@@ -96,16 +96,16 @@ if ($MacDisable) {
 }
 
 # installing openssh
-$OpenSSHUrl = "@OpenSSHUrl@"
-if ($OpenSSHUrl) {
+$OpenSSHPath = "@ANSF_DRIVE_LETTER@\OpenSSH.zip"
+if (Test-Path -Path $OpenSSHPath) {
 	Out-Host "`n==> install and start ssh server"
-	Install-Sshd -Url $OpenSSHUrl
+	Install-Sshd -Path $OpenSSHPath
 }
 
 # complete
 Out-Host "`n==> install complete!!!"
 echo "install complete" | out-file -encoding utf8 $LogPath\@INSTALL_COMPLETE_FILE@
-foreach ($dir in ("D:", "F:")) {
+foreach ($dir in ("@ANSF_DRIVE_LETTER@", "F:")) {
 	if (Test-Path -Path $dir) {
 		Copy-Item -Path $LogPath\@INSTALL_COMPLETE_FILE@ -Destination $dir\
 		Copy-Item -Path $LogPath\@IPCONFIG_LOGF@ -Destination $dir\
