@@ -39,7 +39,7 @@ eject_cds() {
 	for media in $media_list; do
 		_path=$(readlink -f ${media})
 		vm_media=$(virsh domblklist "$vm_name" | awk -v path=$_path '$2==path {print $1}')
-		echo -e "{INFO} eject [vm_media] -> $_path ..."
+		echo -e "{INFO} eject [$vm_media] -> $_path ..."
 		virsh change-media "$vm_name" "$vm_media" --eject
 	done
 }
