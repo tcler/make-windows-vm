@@ -96,10 +96,10 @@ switch($Stage) {
 		echo "@HOST_IP@ @VIRTHOST@" >> $Env:WinDir\system32\drivers\etc\hosts
 
 		# disabling DNS registration on the network interface
-		$MacDisable = "@MAC_DISABLE@"
-		if ($MacDisable) {
+		$MacOfNicInt = "@VNIC_INT_MAC@"
+		if ($MacOfNicInt) {
 			Out-Host "`n==> disabling DNS registration on the network interface"
-			$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='$MacDisable'")
+			$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='$MacOfNicInt'")
 			$Nic.SetDynamicDNSRegistration($false,$false)
 		}
 
@@ -132,7 +132,7 @@ switch($Stage) {
 	"afterADSetup" {
 		# do this just after AD has been set up
 		Out-Host "`n==> reset dns ip"
-		$DNS_IPS=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@DNS_IF_MAC@'").IPaddress
+		$DNS_IPS=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@VNIC_EXT_MAC@'").IPaddress
 		dnscmd . /ResetListenAddresses $DNS_IPS
 
 		# Install Standalone Root CA

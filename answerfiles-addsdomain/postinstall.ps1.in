@@ -96,10 +96,10 @@ switch($Stage) {
 		echo "@HOST_IP@ @VIRTHOST@" >> $Env:WinDir\system32\drivers\etc\hosts
 
 		# disabling DNS registration on the network interface
-		$MacDisable = "@MAC_DISABLE@"
-		if ($MacDisable) {
+		$MacOfNicInt = "@VNIC_INT_MAC@"
+		if ($MacOfNicInt) {
 			Out-Host "`n==> disabling DNS registration on the network interface"
-			$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='$MacDisable'")
+			$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='$MacOfNicInt'")
 			$Nic.SetDynamicDNSRegistration($false,$false)
 		}
 

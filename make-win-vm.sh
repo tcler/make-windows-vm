@@ -352,16 +352,16 @@ service virtlogd start
 # VM network parameters
 NetMode=macvtap
 [[ "$NetMode" = macvtap ]] && MacvtapMode=bridge
-VM_EXT_MAC=$(gen_virt_mac 01)
-echo -e "\n{INFO} vm nic for reach outside network(mac: $VM_EXT_MAC) (NetMode:$NetMode) ..."
+VNIC_EXT_MAC=$(gen_virt_mac 01)
+echo -e "\n{INFO} vm nic for reach outside network(mac: $VNIC_EXT_MAC) (NetMode:$NetMode) ..."
 DEFAULT_NIC=$(get_default_if dev)
-VM_NET_OPT_EXTERNAL="type=direct,source=$DEFAULT_NIC,source_mode=$MacvtapMode,mac=$VM_EXT_MAC"
+VM_NET_OPT_EXTERNAL="type=direct,source=$DEFAULT_NIC,source_mode=$MacvtapMode,mac=$VNIC_EXT_MAC"
 
 VM_NET_NAME=${VNET_NAME:-default}
 HOST_IP=$(virsh net-dumpxml -- $VM_NET_NAME|sed -rn '/^ *<ip address=.([0-9.]+).*$/{s//\1/; p}')
-VM_INT_MAC=$(gen_virt_mac)
-echo -e "\n{INFO} vm nic for inside network(mac: $VM_INT_MAC) ..."
-VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139,mac=$VM_INT_MAC"
+VNIC_INT_MAC=$(gen_virt_mac)
+echo -e "\n{INFO} vm nic for inside network(mac: $VNIC_INT_MAC) ..."
+VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139,mac=$VNIC_INT_MAC"
 
 # VM disk parameters ...
 ANSF_USB=$VM_PATH/$VM_NAME-ansf-usb.image
@@ -393,8 +393,8 @@ process_ansf() {
 		-e "s/@INSTALL_COMPLETE_FILE@/$INSTALL_COMPLETE_FILE/g" \
 		-e "s/@AD_FOREST_LEVEL@/$AD_FOREST_LEVEL/g" \
 		-e "s/@AD_DOMAIN_LEVEL@/$AD_DOMAIN_LEVEL/g" \
-		-e "s/@MAC_DISABLE@/$VM_INT_MAC/g" \
-		-e "s/@DNS_IF_MAC@/$VM_EXT_MAC/g" \
+		-e "s/@VNIC_INT_MAC@/$VNIC_INT_MAC/g" \
+		-e "s/@VNIC_EXT_MAC@/$VNIC_EXT_MAC/g" \
 		-e "s/@VIRTHOST@/$VIRTHOST/g" \
 		-e "s/@IPCONFIG_LOGF@/$IPCONFIG_LOGF/g" \
 		-e "s/@GUEST_HOSTNAME@/$GUEST_HOSTNAME/g" \
