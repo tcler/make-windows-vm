@@ -245,6 +245,18 @@ switch($Stage) {
 		net start w32time
 		w32tm /resync
 
+		# Set krb5 encryption
+		Import-Module ActiveDirectory
+		Import-Module GroupPolicy
+		$GPOName = 'Default Domain Policy'
+		# full supported kerberos encryption is 0x7fffffff
+		Set-GPPrefRegistryValue -Name $GPOName -Action Update -Context Computer -Key 'HKLM\Software\Microsoft\Windows\CurrentVersion\Policies\System\kerberos\Parameters' -Type DWord -ValueName 'SupportedEncryptionTypes' -Value 0x7fffffff
+		Set-ADUser testadmin -KerberosEncryptionType AES128,AES256,DES,RC4
+		Set-ADAccountControl -Identity testadmin -DoesNotRequirePreAuth $true
+		Set-ADUser "\\@ADMINUSER@" -KerberosEncryptionType AES128,AES256,DES,RC4
+		#default timezone
+		Set-TimeZone -Id "Eastern Standard Time" -PassThru
+
 		# Add KDC
 		Out-Host "`n==> Add KDC"
 		ksetup.exe /AddKDC @NETBIOS_NAME@ @FQDN@
@@ -254,6 +266,7 @@ switch($Stage) {
 		setspn -A nfs/@FQDN@ @GUEST_HOSTNAME@
 		setspn -A cifs/@GUEST_HOSTNAME@ @GUEST_HOSTNAME@
 		setspn -A cifs/@FQDN@ @GUEST_HOSTNAME@
+
 	}
 }
 
