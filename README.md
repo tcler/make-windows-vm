@@ -28,9 +28,10 @@ make-windows-vm/
 │   └── postinstall.ps1.in
 ├── make-win-vm.sh
 ├── README.md
-├── test-cert.sh
-├── test-cifs-nfs.sh
-└── test-ssh.sh
+└── utils
+    ├── test-cert.sh
+    ├── test-cifs-nfs.sh
+    └── test-ssh.sh
 ```
 
 ***Note***: There are four answerfiles{, -addsdomain, -addsforest, -cifs-nfs} directories for different usages. 
