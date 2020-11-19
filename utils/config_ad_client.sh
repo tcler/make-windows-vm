@@ -44,6 +44,14 @@ run() {
 	return $ret
 }
 
+getDefaultNic() {
+	ip route | awk '/default/{match($0,"dev ([^ ]+)",M); print M[1]; exit}'
+}
+getDefaultIp4() {
+	local nic=$(getDefaultNic)
+	ip addr show $nic | awk '/inet .* global dynamic/{match($0,"inet ([0-9.]+)",M); print M[1]}'
+}
+
 #
 # PART: [Dependency] Specify all dependencies during integration related jobs
 #
@@ -254,7 +262,7 @@ which systemctl &>/dev/null && {
 
 infoecho "{INFO} Fix ADDC IP and FQDN mappings..."
 echo "$AD_DC_IP $AD_DC_FQDN $AD_DC_NETBIOS" >> $HOSTS_CONF
-echo "$(getDefaultIp) $MY_FQDN $MY_NETBIOS" >> $HOSTS_CONF
+echo "$(getDefaultIp4) $MY_FQDN $MY_NETBIOS" >> $HOSTS_CONF
 run "cat $HOSTS_CONF"
 
 infoecho "{INFO} Configure '$KRB_CONF', edit the realm name..."
