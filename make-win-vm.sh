@@ -60,6 +60,7 @@ create_vdisk() {
 	dd if=/dev/null of=$path bs=1${size//[0-9]/} seek=${size//[^0-9]/}
 	local dev=$(losetup --partscan --show --find $path)
 	printf "o\nn\np\n1\n\n\nw\n" | fdisk "$dev"
+	partprobe "$dev"
 	mkfs.$fstype $MKFS_OPT "${dev}p1"
 	losetup -d $dev
 }
@@ -437,7 +438,7 @@ umount $media_mp
 DiskOption=bus=usb,format=raw,removable=on
 \rm -rf $media_mp
 
-echo -e "\n{INFO} copy iso file # ..."
+echo -e "\n{INFO} copy win iso file to ${VM_PATH}/. # ..."
 \rm -f $VM_IMAGE
 \cp -f $WIN_ISO $VM_PATH/.
 
