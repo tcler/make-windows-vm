@@ -87,6 +87,7 @@ AD_DS_NETBIOS=""
 AD_DS_SUPERPW_default=fsqe2015!
 AD_DS_SUPERPW=$AD_DS_SUPERPW_default
 AD_DC_IP=""
+AD_DC_IP_EXT=""
 AD_DC_FQDN=""
 AD_DC_NETBIOS=""
 
@@ -171,6 +172,7 @@ while [ -n "$1" ]; do
 	-c|--cleanup) cleanup="yes";shift 1;;
 	-e|--enctypes) krbEnc="$2";shift 2;;
 	-i|--addc_ip) AD_DC_IP="$2";shift 2;;
+	--addc_ip_ext) AD_DC_IP_EXT="$2";shift 2;;
 	--rootdc) ROOT_DC="$2";shift 2;;
 	-p|--passwd)  AD_DS_SUPERPW="$2";shift 2;;
 	-h|--help)    Usage;exit 0;;
@@ -248,7 +250,7 @@ mv $RESOLV_CONF $RESOLV_CONF.orig
 {
 	echo "search $AD_DS_NAME"
 	[[ -n "$ROOT_DC" ]] && echo "nameserver $ROOT_DC"
-	echo "nameserver $AD_DC_IP";
+	echo "nameserver ${AD_DC_IP_EXT:-$AD_DC_IP}";
 } >$RESOLV_CONF
 
 run "cat $RESOLV_CONF"
@@ -261,7 +263,7 @@ which systemctl &>/dev/null && {
 }
 
 infoecho "{INFO} Fix ADDC IP and FQDN mappings..."
-echo "$AD_DC_IP $AD_DC_FQDN $AD_DC_NETBIOS" >> $HOSTS_CONF
+echo "${AD_DC_IP_EXT:-$AD_DC_IP} $AD_DC_FQDN $AD_DC_NETBIOS" >> $HOSTS_CONF
 echo "$(getDefaultIp4) $MY_FQDN $MY_NETBIOS" >> $HOSTS_CONF
 run "cat $HOSTS_CONF"
 
