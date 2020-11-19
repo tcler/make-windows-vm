@@ -12,6 +12,7 @@ Usage: config_ad_client.sh <-i AD DC IP [-e <AES|DES> |-p <Password>]|-c|-h> [--
 
         [Basic Function: Config current client as an AD DS Domain Member / Leave current Domain]
         -i|--addc_ip <IP address>  # Specify IP of a Windows AD DC for target AD DS Domain
+        --addc_ip_ext <IP address> # another optional ip of Windows AD DC, used in /etc/hosts and /etc/resolv.conf
         -c|--cleanup               # Leave AD Domain and delete entry in AD database
 
         [Arguments for "AD Integration"]
