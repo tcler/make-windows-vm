@@ -320,7 +320,13 @@ DEFAULT_VM_IMG_DIR=/var/lib/libvirt/images
 VMS_HOME=${VMS_HOME:-/home/Windows_VMs}
 VM_PATH=$VMS_HOME/$VM_NAME
 VM_TIMEOUT=${VM_TIMEOUT:-60}
-VIRTHOST=$(hostname -f)
+VIRTHOST=$(
+for H in $(hostname -A); do
+	if [[ ${#H} > 15 && $H = *.*.* ]]; then
+		echo $H;
+		break;
+	fi
+done)
 VNCPORT=${VNCPORT:-7788}
 mkdir -p $VM_PATH
 chcon -R --reference=$DEFAULT_VM_IMG_DIR $VMS_HOME
