@@ -350,6 +350,7 @@ done)
 [[ -z "$VIRTHOST" ]] && {
 	_ipaddr=$(getDefaultIp4)
 	VIRTHOST=$(host ${_ipaddr%/*} | awk '{print $NF}')
+	VIRTHOST=${VIRTHOST%.}
 }
 VNCPORT=${VNCPORT:-7788}
 mkdir -p $VM_PATH
