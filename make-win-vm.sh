@@ -102,6 +102,20 @@ mount_vdisk() {
 
 is_available_url() { curl --connect-timeout 8 -m 16 --output /dev/null --silent --head --fail $1 &>/dev/null; }
 is_intranet() { is_available_url http://download.devel.redhat.com; }
+getDefaultIp4() {
+	local nic=$1
+	[[ -z "$nic" ]] &&
+		nics=$(ip route | awk '/default/{match($0,"dev ([^ ]+)",M); print M[1]; exit}')
+	for nic in $nics; do
+		[[ -z "$(ip -d link show  dev $nic|sed -n 3p)" ]] && {
+			break
+		}
+	done
+	local ipaddr=`ip addr show $nic`;
+	local ret=$(echo "$ipaddr" |
+			awk '/inet .* global dynamic/{match($0,"inet ([0-9.]+)/[0-9]+",M); print M[1]}');
+	echo "$ret"
+}
 
 # ==============================================================================
 # Parameter Processing
@@ -333,6 +347,10 @@ for H in $(hostname -A); do
 		break;
 	fi
 done)
+[[ -z "$VIRTHOST" ]] && {
+	_ipaddr=$(getDefaultIp4)
+	VIRTHOST=$(host ${_ipaddr%/*} | awk '{print $NF}')
+}
 VNCPORT=${VNCPORT:-7788}
 mkdir -p $VM_PATH
 chcon -R --reference=$DEFAULT_VM_IMG_DIR $VMS_HOME
