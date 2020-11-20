@@ -105,7 +105,7 @@ is_intranet() { is_available_url http://download.devel.redhat.com; }
 getDefaultIp4() {
 	local nic=$1
 	[[ -z "$nic" ]] &&
-		nics=$(ip route | awk '/default/{match($0,"dev ([^ ]+)",M); print M[1]; exit}')
+		nics=$(ip route | awk '/default/{match($0,"dev ([^ ]+)",M); print M[1]}')
 	for nic in $nics; do
 		[[ -z "$(ip -d link show  dev $nic|sed -n 3p)" ]] && {
 			break
