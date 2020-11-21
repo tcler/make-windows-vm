@@ -101,7 +101,6 @@ KRB_CONF=/etc/krb5.conf
 SMB_CONF=/etc/samba/smb.conf
 HOSTS_CONF=/etc/hosts
 RESOLV_CONF=/etc/resolv.conf
-HOSTNAME_CONF=/etc/hostname
 SSSD_CONF=/etc/sssd/sssd.conf
 IDMAP_CONF=/etc/idmapd.conf
 
@@ -247,11 +246,15 @@ kdestroy -A
 
 infoecho "{INFO} Change DNS Server to AD Domain DNS..."
 echo -e "[main]\ndns=none" >/etc/NetworkManager/NetworkManager.conf
-mv $RESOLV_CONF $RESOLV_CONF.orig
+mv $RESOLV_CONF ${RESOLV_CONF}.orig
 {
-	echo "search $AD_DS_NAME"
-	[[ -n "$ROOT_DC" ]] && echo "nameserver $ROOT_DC"
-	echo "nameserver ${AD_DC_IP_EXT:-$AD_DC_IP}";
+	egrep -i "^search.* ${AD_DS_NAME,,}( |$)" ${RESOLV_CONF}.orig ||
+		sed -n -e "/^search/{s//& ${AD_DS_NAME,,}/; p}" ${RESOLV_CONF}.orig
+	for nsaddr in $ROOT_DC ${AD_DC_IP_EXT:-$AD_DC_IP}; do
+		egrep -q "^nameserver $nsaddr" ${RESOLV_CONF}.orig ||
+			echo "nameserver $nsaddr"
+	done
+	egrep ^nameserver ${RESOLV_CONF}.orig
 } >$RESOLV_CONF
 
 run "cat $RESOLV_CONF"
@@ -265,7 +268,7 @@ which systemctl &>/dev/null && {
 
 infoecho "{INFO} Fix ADDC IP and FQDN mappings..."
 echo "${AD_DC_IP_EXT:-$AD_DC_IP} $AD_DC_FQDN $AD_DC_NETBIOS" >> $HOSTS_CONF
-echo "$(getDefaultIp4) $MY_FQDN $MY_NETBIOS" >> $HOSTS_CONF
+echo "$(getDefaultIp4) ${HOSTNAME} ${HOSTNAME}.${AD_DS_NAME,,}" >> $HOSTS_CONF
 run "cat $HOSTS_CONF"
 
 infoecho "{INFO} Configure '$KRB_CONF', edit the realm name..."
