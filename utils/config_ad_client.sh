@@ -252,9 +252,9 @@ mv $RESOLV_CONF ${RESOLV_CONF}.orig
 		sed -n -e "/^search/{s//& ${AD_DS_NAME,,}/; p}" ${RESOLV_CONF}.orig
 	for nsaddr in $ROOT_DC ${AD_DC_IP_EXT:-$AD_DC_IP}; do
 		egrep -q "^nameserver $nsaddr" ${RESOLV_CONF}.orig ||
-			echo "nameserver $nsaddr"
+			echo "nameserver $nsaddr   #windows-ad"
 	done
-	egrep ^nameserver ${RESOLV_CONF}.orig
+	egrep ^nameserver ${RESOLV_CONF}.orig | grep -v '#windows-ad'
 } >$RESOLV_CONF
 
 run "cat $RESOLV_CONF"
@@ -267,6 +267,7 @@ which systemctl &>/dev/null && {
 }
 
 infoecho "{INFO} Fix ADDC IP and FQDN mappings..."
+sed -i -e "/$AD_DC_FQDN/d" -e "/${HOSTNAME}/d" $HOSTS_CONF
 echo "${AD_DC_IP_EXT:-$AD_DC_IP} $AD_DC_FQDN $AD_DC_NETBIOS" >> $HOSTS_CONF
 echo "$(getDefaultIp4) ${HOSTNAME} ${HOSTNAME}.${AD_DS_NAME,,}" >> $HOSTS_CONF
 run "cat $HOSTS_CONF"
