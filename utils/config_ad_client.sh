@@ -247,6 +247,7 @@ kdestroy -A
 infoecho "{INFO} Change DNS Server to AD Domain DNS..."
 run 'echo -e "[main]\ndns=none" >/etc/NetworkManager/NetworkManager.conf'
 run 'systemctl restart NetworkManager'
+run 'echo -e "make_resolv_conf(){\n    :\n}" >/etc/dhclient-enter-hooks'
 mv $RESOLV_CONF ${RESOLV_CONF}.orig
 {
 	egrep -i "^search.* ${AD_DS_NAME,,}( |$)" ${RESOLV_CONF}.orig ||
