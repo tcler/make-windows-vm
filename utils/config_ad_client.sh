@@ -245,8 +245,8 @@ kdestroy -A
 \rm -f /tmp/krb5cc*  /var/tmp/krb5kdc_rcache  /var/tmp/rc_kadmin_0
 
 infoecho "{INFO} Change DNS Server to AD Domain DNS..."
-echo -e "[main]\ndns=none" >/etc/NetworkManager/NetworkManager.conf
-systemctl restart NetworkManager
+run 'echo -e "[main]\ndns=none" >/etc/NetworkManager/NetworkManager.conf'
+run 'systemctl restart NetworkManager'
 mv $RESOLV_CONF ${RESOLV_CONF}.orig
 {
 	egrep -i "^search.* ${AD_DS_NAME,,}( |$)" ${RESOLV_CONF}.orig ||
