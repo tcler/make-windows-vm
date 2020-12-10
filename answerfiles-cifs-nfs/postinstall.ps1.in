@@ -81,14 +81,20 @@ switch($Stage) {
 		$EXT_STATIC_IP = "@EXT_STATIC_IP@"
 		if ($INT_STATIC_IP) {
 			$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@VNIC_INT_MAC@'")
-			$oAddr = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $Nic.InterfaceIndex)
-			New-NetIPAddress -InterfaceIndex $Nic.InterfaceIndex -AddressFamily IPv4 -IPAddress $INT_STATIC_IP -PrefixLength $oAddr.PrefixLength -DefaultGateway $Nic.DefaultIPGateway.Item(0)
+			$oldIntAddr = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $Nic.InterfaceIndex)
+			New-NetIPAddress -InterfaceIndex $Nic.InterfaceIndex -AddressFamily IPv4 -IPAddress $INT_STATIC_IP -PrefixLength $oldIntAddr.PrefixLength -DefaultGateway $Nic.DefaultIPGateway.Item(0)
 		}
+
+		# change address of EXT NIC from DHCP to STATIC
+		$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@VNIC_EXT_MAC@'")
+		$oldExtAddr = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $Nic.InterfaceIndex)
+		$extStaticIp = $Nic.IPaddress[0].Trim()
 		if ($EXT_STATIC_IP) {
-			$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@VNIC_EXT_MAC@'")
-			$oAddr = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $Nic.InterfaceIndex)
-			New-NetIPAddress -InterfaceIndex $Nic.InterfaceIndex -AddressFamily IPv4 -IPAddress $EXT_STATIC_IP -PrefixLength $oAddr.PrefixLength -DefaultGateway $Nic.DefaultIPGateway.Item(0)
+			$extStaticIp=$EXT_STATIC_IP
+		} else {
+			Remove-NetIPAddress -IPAddress $extStaticIp -Confirm:$false
 		}
+		New-NetIPAddress -InterfaceIndex $Nic.InterfaceIndex -AddressFamily IPv4 -IPAddress $extStaticIp -PrefixLength $oldExtAddr.PrefixLength -DefaultGateway $Nic.DefaultIPGateway.Item(0)
 
 		# disabling IE ESC (Internet Explorer Enhanced Security Configuration)
 		Out-Host "`n==> disabling IE ESC (Internet Explorer Enhanced Security Configuration)"
