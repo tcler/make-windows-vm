@@ -259,7 +259,7 @@ switch($Stage) {
 		Set-GPPrefRegistryValue -Name $GPOName -Action Update -Context Computer -Key 'HKLM\Software\Microsoft\Windows\CurrentVersion\Policies\System\kerberos\Parameters' -Type DWord -ValueName 'SupportedEncryptionTypes' -Value 0x7fffffff
 		Set-ADUser testadmin -KerberosEncryptionType AES128,AES256,DES,RC4
 		Set-ADAccountControl -Identity testadmin -DoesNotRequirePreAuth $true
-		Set-ADUser "\\@ADMINUSER@" -KerberosEncryptionType AES128,AES256,DES,RC4
+		Set-ADUser "@ADMINUSER@" -KerberosEncryptionType AES128,AES256,DES,RC4
 		#default timezone
 		Set-TimeZone -Id "Eastern Standard Time" -PassThru
 
