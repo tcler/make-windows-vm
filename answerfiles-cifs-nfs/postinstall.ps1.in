@@ -223,19 +223,9 @@ switch($Stage) {
 		Import-Module ServerManager
 		#Add-WindowsFeature Adcs-Cert-Authority -IncludeManagementTools
 		#Install-AdcsCertificationAuthority -force -CAType EnterpriseRootCa
+		#Install DFS feature
 		Install-WindowsFeature -Name FS-DFS-Namespace,FS-DFS-Replication -IncludeManagementTools
-		$cifsShareName = "cifstest"
-		$cifsShareName3 = "dfsroot"
- 		New-DfsnRoot -TargetPath "\\@GUEST_HOSTNAME@\$cifsShareName3" -Type DomainV2 -Path "\\@AD_DOMAIN@\dfsroot" -EnableSiteCosting:$true -EnableAccessBasedEnumeration:$True
-		New-DfsnFolderTarget -Path "\\@AD_DOMAIN@\dfsroot\local" -TargetPath  "\\@GUEST_HOSTNAME@\$cifsShareName"
-		$dfstarget="@DFS_TARGET@"
-		if ($dfstarget)
-		{
-			$dfsserv=$dfstarget.Split(":")[0]
-			$dfsshare=$dfstarget.Split(":")[1]
-			New-DfsnFolderTarget -Path "\\@AD_DOMAIN@\dfsroot\remote" -TargetPath  "\\$dfsserv\$dfsshare"
-			New-DfsnFolderTarget -Path "\\@AD_DOMAIN@\dfsroot\remote" -TargetPath  "\\@GUEST_HOSTNAME@\$cifsShareName"
-		}
+
 		# Reboot to complete Root CA Services setup
 		Out-Host "`n==> Reboot to complete Root CA setup"
 		Set-ItemProperty $RunOnceKey "NextRun" "powershell $PostProg afterRootCASetup >> @POST_INSTALL_LOG@ 2>&1"
@@ -250,6 +240,20 @@ switch($Stage) {
 		net stop w32time
 		net start w32time
 		w32tm /resync
+
+		#setup dfs
+		$cifsShareName = "cifstest"
+		$cifsShareName3 = "dfsroot"
+ 		New-DfsnRoot -TargetPath "\\@GUEST_HOSTNAME@\$cifsShareName3" -Type DomainV2 -Path "\\@AD_DOMAIN@\dfsroot" -EnableSiteCosting:$true -EnableAccessBasedEnumeration:$True
+		New-DfsnFolderTarget -Path "\\@AD_DOMAIN@\dfsroot\local" -TargetPath  "\\@GUEST_HOSTNAME@\$cifsShareName"
+		$dfstarget="@DFS_TARGET@"
+		if ($dfstarget)
+		{
+			$dfsserv=$dfstarget.Split(":")[0]
+			$dfsshare=$dfstarget.Split(":")[1]
+			New-DfsnFolderTarget -Path "\\@AD_DOMAIN@\dfsroot\remote" -TargetPath  "\\$dfsserv\$dfsshare"
+			New-DfsnFolderTarget -Path "\\@AD_DOMAIN@\dfsroot\remote" -TargetPath  "\\@GUEST_HOSTNAME@\$cifsShareName"
+		}
 
 		# Set krb5 encryption
 		Import-Module ActiveDirectory
