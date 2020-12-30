@@ -445,6 +445,7 @@ process_ansf() {
 		-e "s/@PARENT_DOMAIN@/$PARENT_DOMAIN/g" \
 		-e "s/@PARENT_IP@/$PARENT_IP/g" \
 		-e "s/@DFS_TARGET@/$DFS_TARGET/g" \
+		-e "s/@HOST_NAME@/$HOSTNAME/g" \
 		$destdir/*
 	unix2dos $destdir/* >/dev/null
 	[[ -z "$PRODUCT_KEY" ]] &&

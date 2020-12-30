@@ -246,13 +246,13 @@ switch($Stage) {
 		$cifsShareName3 = "dfsroot"
  		New-DfsnRoot -TargetPath "\\@GUEST_HOSTNAME@\$cifsShareName3" -Type DomainV2 -Path "\\@AD_DOMAIN@\dfsroot" -EnableSiteCosting:$true -EnableAccessBasedEnumeration:$True
 		New-DfsnFolderTarget -Path "\\@AD_DOMAIN@\dfsroot\local" -TargetPath  "\\@GUEST_HOSTNAME@\$cifsShareName"
+		New-DfsnFolderTarget -Path "\\@AD_DOMAIN@\dfsroot\remote" -TargetPath  "\\@HOST_NAME@\cifs"
 		$dfstarget="@DFS_TARGET@"
 		if ($dfstarget)
 		{
 			$dfsserv=$dfstarget.Split(":")[0]
 			$dfsshare=$dfstarget.Split(":")[1]
 			New-DfsnFolderTarget -Path "\\@AD_DOMAIN@\dfsroot\remote" -TargetPath  "\\$dfsserv\$dfsshare"
-			New-DfsnFolderTarget -Path "\\@AD_DOMAIN@\dfsroot\remote" -TargetPath  "\\@GUEST_HOSTNAME@\$cifsShareName"
 		}
 
 		# Set krb5 encryption
