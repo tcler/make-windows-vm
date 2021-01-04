@@ -571,6 +571,8 @@ VM_EXT_IP=$(awk '/^ *IPv4 Address/ {if ($NF !~ /^192/) print $NF}' $WIN_IPCONFIG
 VM_EXT_IP6=$(awk '/^ *IPv6 Address/ {printf("%s,", $NF)}' $WIN_IPCONFIG_LOG)
 [[ -z "$VM_EXT_IP" ]] && VM_EXT_IP=${VM_EXT_IP6%%,*}
 
+showmount -e "$VM_INT_IP"
+
 VM_INFO_FILE=/tmp/$VM_NAME.env
 cat <<-EOF | tee $VM_INFO_FILE
 	VM_INT_IP=$VM_INT_IP
@@ -583,6 +585,11 @@ cat <<-EOF | tee $VM_INFO_FILE
 	AD_FQDN=$FQDN
 	AD_NETBIOS_NAME=$NETBIOS_NAME
 	AD_VNC_URL=$VIRTHOST:$VNCPORT
+	WIN_CIFS_SHARE1=cifstest
+	WIN_CIFS_SHARE2=cifssch
+	WIN_DFS_SHARE=dfsroot
+	WIN_NFS_SHARE1=/nfstest
+	WIN_NFS_SHARE2=/nfssch
 EOF
 
 # Test SSH connection
