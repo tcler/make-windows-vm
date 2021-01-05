@@ -588,6 +588,8 @@ cat <<-EOF | tee $VM_INFO_FILE
 	WIN_CIFS_SHARE1=cifstest
 	WIN_CIFS_SHARE2=cifssch
 	WIN_DFS_SHARE=dfsroot
+	WIN_DFS_SHARE1=dfsroot/local
+	WIN_DFS_SHARE2=dfsroot/remote
 	WIN_NFS_SHARE1=/nfstest
 	WIN_NFS_SHARE2=/nfssch
 EOF
