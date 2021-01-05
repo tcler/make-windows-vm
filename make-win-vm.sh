@@ -284,7 +284,7 @@ while true; do
 	--parent-domain) PARENT_DOMAIN="$2"; shift 2;;
 	--parent-ip) PARENT_IP="$2"; shift 2;;
 	--openssh) OpenSSHUrl="$2"; shift 2;;
-	--dfs-target) DFS_TARGET="$2"; shift 2;;
+	--dfs-target) DFS_TARGET="$2"; DFS=yes; shift 2;;
 	-f|--force|--overwrite) OVERWRITE="yes"; shift 1;;
 	--xdisk) XDISK="yes"; shift 1;;
 	--) shift; break;;
@@ -357,6 +357,12 @@ mkdir -p $VM_PATH
 chcon -R --reference=$DEFAULT_VM_IMG_DIR $VMS_HOME
 eval setfacl -mu:qemu:rx $VMS_HOME
 
+# =======================================================================
+# dfs target prepare
+# =======================================================================
+if [[ "$DFS" = yes && -z "$DFS_TARGET" ]]; then
+	: #yum install -y ?
+fi
 
 # =======================================================================
 # Windows Preparation
