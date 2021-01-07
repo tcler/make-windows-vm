@@ -358,13 +358,6 @@ chcon -R --reference=$DEFAULT_VM_IMG_DIR $VMS_HOME
 eval setfacl -mu:qemu:rx $VMS_HOME
 
 # =======================================================================
-# dfs target prepare
-# =======================================================================
-if [[ "$DFS" = yes && -z "$DFS_TARGET" ]]; then
-	: #yum install -y ?
-fi
-
-# =======================================================================
 # Windows Preparation
 # =======================================================================
 WIM_IMAGE_INDEX=${WIM_IMAGE_INDEX:-4}
@@ -379,6 +372,15 @@ FQDN=$GUEST_HOSTNAME.$DOMAIN
 [[ -n "$PARENT_DOMAIN" ]] && FQDN+=.$PARENT_DOMAIN
 NETBIOS_NAME=$(echo ${DOMAIN//./} | tr '[a-z]' '[A-Z]')
 NETBIOS_NAME=${NETBIOS_NAME:0:15}
+
+# =======================================================================
+# dfs target prepare
+# =======================================================================
+if [[ "$DFS" = yes && -z "$DFS_TARGET" ]]; then
+	./utils/make-samba-server.sh --users=$ADMINUSER,smbfoo,smbbar \
+		--passwd=$ADMINPASSWORD --group=$DOMAIN
+	$DFS_TARGET=$HOSTNAME:pub
+fi
 
 # =======================================================================
 # KVM Preparation
