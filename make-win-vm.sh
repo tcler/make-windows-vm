@@ -378,7 +378,7 @@ NETBIOS_NAME=${NETBIOS_NAME:0:15}
 # =======================================================================
 if [[ "$DFS" = yes && -z "$DFS_TARGET" ]]; then
 	./utils/make-samba-server.sh --users=$ADMINUSER,smbfoo,smbbar \
-		--passwd=$ADMINPASSWORD --group=$DOMAIN
+		--passwd=$ADMINPASSWORD --group=${DOMAIN//./}
 	$DFS_TARGET=$HOSTNAME:pub
 fi
 
