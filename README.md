@@ -110,8 +110,8 @@ mandatory. To get more help, see [README-options](./README-options.md) or just u
 2. libguestfs can't mount ntfs after RHEL-7.2, because libguestfs-winsupport was disabled for some reason. 
 Now it seems only RHEL Server provides libguestfs-winsupport.
 
-3. For users of other distributions, we provide a workaround: Use floppy as answer file media type instead of iso, 
-thus we can write windows guest info on floppy instead and still could read them from host (This is done automatically 
+3. For users of other distributions, we provide a workaround: Use USB as answer file media type instead of iso, 
+thus we can write windows guest info on USB instead and still could read them from host (This is done automatically 
 so no extra operations are needed).
 
 4. If the password of windows is too weak, it will fail to deploy windows.
