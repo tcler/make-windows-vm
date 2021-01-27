@@ -233,7 +233,7 @@ fi
 #
 
 infoecho "{INFO} Make sure necessary packages are installed..."
-rpm -q $pkgs &>/dev/null || yum -y install $pkgs &>/dev/null
+rpm -q $pkgs &>/dev/null || yum --setopt=strict=0 -y install $pkgs &>/dev/null
 
 if [ "$config_idmap" == "yes" ]; then
 	rpm -q $idmap_pkgs &>/dev/null || yum -y install $idmap_pkgs &>/dev/null
