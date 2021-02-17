@@ -368,7 +368,11 @@ done)
 	_ipaddr=$(getDefaultIp4)
 	VIRTHOST=$(host ${_ipaddr%/*} | awk '{print $NF}')
 	VIRTHOST=${VIRTHOST%.}
+	[[ "$VIRTHOST" = *NXDOMAIN* ]] && {
+		VIRTHOST=$_ipaddr
+	}
 }
+
 VNCPORT=${VNCPORT:-7788}
 mkdir -p $VM_PATH
 chcon -R --reference=$DEFAULT_VM_IMG_DIR $VMS_HOME
