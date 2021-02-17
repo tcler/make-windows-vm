@@ -11,11 +11,14 @@ is_bridge() {
 
 get_default_if() {
 	local notbr=$1  #indicate get real NIC not bridge
-	local iface=
+	local _iface= iface=
+	local type=
 
 	ifaces=$(ip route | awk '/^default/{print $5}')
-	for iface in $ifaces; do
-		[[ -z "$(ip -d link show  dev $iface|sed -n 3p)" ]] && {
+	for _iface in $ifaces; do
+		type=$(ip -d link show dev $_iface|sed -n '3{s/^\s*//; p}')
+		[[ -z "$type" || "$type" = altname* ]] && {
+			iface=$_iface
 			break
 		}
 	done
@@ -422,8 +425,8 @@ service virtlogd start
 NetMode=macvtap
 [[ "$NetMode" = macvtap ]] && MacvtapMode=bridge
 VNIC_EXT_MAC=$(gen_virt_mac 01)
-echo -e "\n{INFO} vm nic for reach outside network(mac: $VNIC_EXT_MAC) (NetMode:$NetMode) ..."
 DEFAULT_NIC=$(get_default_if dev)
+echo -e "\n{INFO} vm nic for reach outside network(mac: $VNIC_EXT_MAC) (source:$DEFAULT_NIC, NetMode:$NetMode) ..."
 VM_NET_OPT_EXTERNAL="type=direct,source=$DEFAULT_NIC,source_mode=$MacvtapMode,mac=$VNIC_EXT_MAC"
 
 VM_NET_NAME=${VNET_NAME:-default}
