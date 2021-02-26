@@ -545,13 +545,21 @@ virt-install --connect=qemu:///system --hvm --accelerate --cpu host \
 	$XDISK_OPTS \
 	--serial file,path=$SERIAL_PATH --serial pty \
 	--network $VM_NET_OPT_EXTERNAL --network $VM_NET_OPT_INTERNAL \
-	--vnc --vnclisten 0.0.0.0 --vncport ${VNCPORT}
+	--vnc --vnclisten 0.0.0.0 --vncport ${VNCPORT} \
+	--noautoconsole
 ret=$?
 \rm $SERIAL_PATH
 
 echo -e "\n{INFO} virt-install finish with return code($ret)"
 if ! virsh desc $VM_NAME &>/dev/null; then
 	echo "{WARN} seems virt-install fail, exit ..."
+fi
+
+if [[ -n "$DISPLAY" ]]; then
+	virt-viewer -w "$VM_NAME" & 
+	wait
+	vm start "$VM_NAME"
+	virt-viewer -w "$VM_NAME" & 
 fi
 
 # =======================================================================

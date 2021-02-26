@@ -23,6 +23,7 @@ Usage: config_ad_client.sh <-i AD DC IP [-e <AES|DES> |-p <Password>]|-c|-h> [--
         --config_idmap             # Config current client as an NFSv4 IDMAP client
         --config_krb               # Config current client as a Secure NFS client
 	--rootdc                   # root DC ip
+	--short-hostname           # short hostname for AD Domain
 END
 }
 
@@ -58,18 +59,19 @@ getDefaultIp4() {
 #
 
 # To generate unique 15-char NetBIOS name by truncating the original
-[[ ${#HOSTNAME} -gt 15 ]] && {
-	errecho "[ERROR] the length of hostname($HOSTNAME) should be less than 15, try following commands"
+SHORT_HOSTNAME=${SHORT_HOSTNAME:-$HOSTNAME}
+[[ ${#SHORT_HOSTNAME} -gt 15 ]] && {
+	errecho "[ERROR] the length of hostname($SHORT_HOSTNAME) should be less than 15, try following commands"
 	cat <<-'EOF'
 		  echo "$a_short_name" >/etc/hostname
 		  hostname $(< /etc/hostname)
-		  export HOSTNAME=$(hostname)
+		  export SHORT_HOSTNAME=$(hostname)
 	EOF
 	exit 1
 }
 
 # Specify NetBIOS name of current client in target AD Domain
-MY_FQDN=${HOSTNAME^^}
+MY_FQDN=${SHORT_HOSTNAME^^}
 MY_NETBIOS=${MY_FQDN%%.*}
 
 # Specify packages for "Windows AD Integration (SSSD ad_provider)"
@@ -176,6 +178,7 @@ while [ -n "$1" ]; do
 	--rootdc) ROOT_DC="$2";shift 2;;
 	-p|--passwd)  AD_DS_SUPERPW="$2";shift 2;;
 	-h|--help)    Usage;exit 0;;
+	--short-hostname) SHORT_HOSTNAME=$2; shift 2;;
 	*) break;;
 	esac
 done
@@ -269,9 +272,9 @@ which systemctl &>/dev/null && {
 }
 
 infoecho "{INFO} Fix ADDC IP and FQDN mappings..."
-sed -i -e "/$AD_DC_FQDN/d" -e "/${HOSTNAME}/d" $HOSTS_CONF
+sed -i -e "/$AD_DC_FQDN/d" -e "/${SHORT_HOSTNAME}/d" $HOSTS_CONF
 echo "${AD_DC_IP_EXT:-$AD_DC_IP} $AD_DC_FQDN $AD_DC_NETBIOS" >> $HOSTS_CONF
-echo "$(getDefaultIp4) ${HOSTNAME} ${HOSTNAME}.${AD_DS_NAME,,}" >> $HOSTS_CONF
+echo "$(getDefaultIp4) ${SHORT_HOSTNAME} ${SHORT_HOSTNAME}.${AD_DS_NAME,,}" >> $HOSTS_CONF
 run "cat $HOSTS_CONF"
 
 infoecho "{INFO} Configure '$KRB_CONF', edit the realm name..."
@@ -329,15 +332,15 @@ if [ $? -ne 0 ]; then
 	errecho "AD Integration Failed, cannot join AD Domain by 'net ads join'"
 	exit 1;
 fi
-run "net ads dns gethostbyname $AD_DC_FQDN $HOSTNAME"
+run "net ads dns gethostbyname $AD_DC_FQDN $SHORT_HOSTNAME"
 if [ $? -ne 0 ]; then
 	errecho "Failed to find dns entry from AD"
-	run "net ads dns register $HOSTNAME"
+	run "net ads dns register $SHORT_HOSTNAME"
 	if [ $? -ne 0 ]; then
 		errecho "Failed to add host dns entry to AD"
 		exit 1;
 	else
-		run "net ads dns gethostbyname $AD_DC_FQDN $HOSTNAME"
+		run "net ads dns gethostbyname $AD_DC_FQDN $SHORT_HOSTNAME"
 	fi
 fi
 
