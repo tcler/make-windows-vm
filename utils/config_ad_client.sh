@@ -6,7 +6,7 @@ P=${0##*/}
 
 Usage() {
 cat <<END
-Usage: config_ad_client.sh <-i AD DC IP [-e <AES|DES> |-p <Password>]|-c|-h> [--config_idmap|--config_krb]
+Usage: config_ad_client.sh -i <AD_DC_IP> -p <Password> [-e <AES|DES>] [--config_idmap|--config_krb]
 
         -h|--help                  # Print this help
 
@@ -23,7 +23,7 @@ Usage: config_ad_client.sh <-i AD DC IP [-e <AES|DES> |-p <Password>]|-c|-h> [--
         --config_idmap             # Config current client as an NFSv4 IDMAP client
         --config_krb               # Config current client as a Secure NFS client
 	--rootdc                   # root DC ip
-	--short-hostname           # short hostname for AD Domain
+	--host-netbios             # netbios name of the host. #used for join to Windows AD
 END
 }
 
@@ -54,24 +54,46 @@ getDefaultIp4() {
 	ip addr show $nic | awk '/inet .* global dynamic/{match($0,"inet ([0-9.]+)",M); print M[1]}'
 }
 
+[ $# -eq 0 ] && {
+       Usage;
+       exit 1;
+}
+
+# Current Supported Extra Functions:
+config_krb="no"    # Config secure NFS client
+config_idmap="no"  # Config NFSv4 idmap client
+
+cleanup="no"       # Quit current AD Domain, clear entries in AD DS database
+
+while [ -n "$1" ]; do
+	case "$1" in
+	--config_idmap) config_idmap="yes";shift 1;;
+	--config_krb) config_krb="yes";shift 1;;
+	-c|--cleanup) cleanup="yes";shift 1;;
+	-e|--enctypes) krbEnc="$2";shift 2;;
+	-i|--addc_ip) AD_DC_IP="$2";shift 2;;
+	--addc_ip_ext) AD_DC_IP_EXT="$2";shift 2;;
+	--rootdc) ROOT_DC="$2";shift 2;;
+	-p|--passwd)  AD_DS_SUPERPW="$2";shift 2;;
+	-h|--help)    Usage;exit 0;;
+	--host-netbios) HOST_NETBIOS=$2; shift 2;;
+	*) break;;
+	esac
+done
+
 #
 # PART: [Dependency] Specify all dependencies during integration related jobs
 #
 
 # To generate unique 15-char NetBIOS name by truncating the original
-SHORT_HOSTNAME=${SHORT_HOSTNAME:-$HOSTNAME}
-[[ ${#SHORT_HOSTNAME} -gt 15 ]] && {
-	errecho "[ERROR] the length of hostname($SHORT_HOSTNAME) should be less than 15, try following commands"
-	cat <<-'EOF'
-		  echo "$a_short_name" >/etc/hostname
-		  hostname $(< /etc/hostname)
-		  export SHORT_HOSTNAME=$(hostname)
-	EOF
+HOST_NETBIOS=${HOST_NETBIOS:-$HOSTNAME}
+[[ ${#HOST_NETBIOS} -gt 15 ]] && {
+	errecho "[ERROR] the length of hostname($HOST_NETBIOS) should be less than 15, try following commands"
 	exit 1
 }
 
 # Specify NetBIOS name of current client in target AD Domain
-MY_FQDN=${SHORT_HOSTNAME^^}
+MY_FQDN=${HOST_NETBIOS^^}
 MY_NETBIOS=${MY_FQDN%%.*}
 
 # Specify packages for "Windows AD Integration (SSSD ad_provider)"
@@ -87,10 +109,6 @@ idmap_pkgs="nfs-utils libnfsidmap nfs-utils-lib
 # Specify target AD Domain and its Domain Controller/DC information
 AD_DS_NAME=""
 AD_DS_NETBIOS=""
-AD_DS_SUPERPW_default=fsqe2015!
-AD_DS_SUPERPW=$AD_DS_SUPERPW_default
-AD_DC_IP=""
-AD_DC_IP_EXT=""
 AD_DC_FQDN=""
 AD_DC_NETBIOS=""
 
@@ -152,36 +170,10 @@ sssd_ad_providerConfTemp="[nss]
   default_shell = /bin/bash
   use_fully_qualified_names = True"
 
-cleanup="no"       # Quit current AD Domain, clear entries in AD DS database
-
-# Current Supported Extra Functions:
-config_krb="no"    # Config secure NFS client
-config_idmap="no"  # Config NFSv4 idmap client
 
 #
 # PART: [Preparing] Prepare AD DS/DC Information
 #
-
-[ $# -eq 0 ] && {
-       Usage;
-       exit 1;
-}
-
-while [ -n "$1" ]; do
-	case "$1" in
-	--config_idmap) config_idmap="yes";shift 1;;
-	--config_krb) config_krb="yes";shift 1;;
-	-c|--cleanup) cleanup="yes";shift 1;;
-	-e|--enctypes) krbEnc="$2";shift 2;;
-	-i|--addc_ip) AD_DC_IP="$2";shift 2;;
-	--addc_ip_ext) AD_DC_IP_EXT="$2";shift 2;;
-	--rootdc) ROOT_DC="$2";shift 2;;
-	-p|--passwd)  AD_DS_SUPERPW="$2";shift 2;;
-	-h|--help)    Usage;exit 0;;
-	--short-hostname) SHORT_HOSTNAME=$2; shift 2;;
-	*) break;;
-	esac
-done
 
 if [ "$cleanup" == "yes" ]; then
 	echo "{Info} Try to leave the current AD DS Domain"
@@ -197,6 +189,12 @@ fi
 
 [ -z "$AD_DC_IP" ] && {
 	errecho "{WARN} Please specify IP of target AD Domain's Domain Controller/DC"
+	Usage;
+	exit 1;
+}
+
+[ -z "$AD_DS_SUPERPW" ] && {
+	errecho "{WARN} Please specify admin password of target AD Domain's Domain Controller/DC"
 	Usage;
 	exit 1;
 }
@@ -272,9 +270,9 @@ which systemctl &>/dev/null && {
 }
 
 infoecho "{INFO} Fix ADDC IP and FQDN mappings..."
-sed -i -e "/$AD_DC_FQDN/d" -e "/${SHORT_HOSTNAME}/d" $HOSTS_CONF
+sed -i -e "/$AD_DC_FQDN/d" -e "/${HOST_NETBIOS}/d" $HOSTS_CONF
 echo "${AD_DC_IP_EXT:-$AD_DC_IP} $AD_DC_FQDN $AD_DC_NETBIOS" >> $HOSTS_CONF
-echo "$(getDefaultIp4) ${SHORT_HOSTNAME} ${SHORT_HOSTNAME}.${AD_DS_NAME,,}" >> $HOSTS_CONF
+echo "$(getDefaultIp4) ${HOST_NETBIOS} ${HOST_NETBIOS}.${AD_DS_NAME,,}" >> $HOSTS_CONF
 run "cat $HOSTS_CONF"
 
 infoecho "{INFO} Configure '$KRB_CONF', edit the realm name..."
@@ -311,6 +309,7 @@ client use spnego = yes
 kerberos method = secrets and keytab
 password server = $AD_DC_FQDN
 realm = $AD_DS_NAME
+netbios name = $HOST_NETBIOS
 security = ads
 EOFL
 run "cat $SMB_CONF"
@@ -326,21 +325,24 @@ if [ $? -ne 0 ]; then
 	errecho "AD Integration Failed, cannot get TGT principal of Administrator@${AD_DS_NAME} during kinit"
 	exit 1;
 fi
+run "kinit Administrator <<< ${AD_DS_SUPERPW}"
+
 # Join host to an Active Directory (AD), and update the DNS
 run "net ads join --kerberos"
 if [ $? -ne 0 ]; then
 	errecho "AD Integration Failed, cannot join AD Domain by 'net ads join'"
 	exit 1;
 fi
-run "net ads dns gethostbyname $AD_DC_FQDN $SHORT_HOSTNAME"
+
+run "net ads dns gethostbyname $AD_DC_FQDN $HOST_NETBIOS"
 if [ $? -ne 0 ]; then
 	errecho "Failed to find dns entry from AD"
-	run "net ads dns register $SHORT_HOSTNAME"
+	run "net ads dns register $HOST_NETBIOS"
 	if [ $? -ne 0 ]; then
 		errecho "Failed to add host dns entry to AD"
-		exit 1;
+		#exit 1;
 	else
-		run "net ads dns gethostbyname $AD_DC_FQDN $SHORT_HOSTNAME"
+		run "net ads dns gethostbyname $AD_DC_FQDN $HOST_NETBIOS"
 	fi
 fi
 
