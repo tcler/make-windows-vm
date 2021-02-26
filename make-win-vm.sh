@@ -536,6 +536,7 @@ fi
 # Execute virt-install command with the parameters given
 # =======================================================================
 echo -e "\n{INFO} virt-install ..."
+if [[ -n "$DISPLAY" ]]; then consoleOpt=--noautoconsole; fi
 virt-install --connect=qemu:///system --hvm --accelerate --cpu host \
 	--name "$VM_NAME" --ram=${VM_RAM} --vcpu=${VM_CPUS:-2} \
 	--os-variant ${VM_OS_VARIANT} \
@@ -546,7 +547,7 @@ virt-install --connect=qemu:///system --hvm --accelerate --cpu host \
 	--serial file,path=$SERIAL_PATH --serial pty \
 	--network $VM_NET_OPT_EXTERNAL --network $VM_NET_OPT_INTERNAL \
 	--vnc --vnclisten 0.0.0.0 --vncport ${VNCPORT} \
-	--noautoconsole
+	$consoleOpt
 ret=$?
 \rm $SERIAL_PATH
 
@@ -557,7 +558,7 @@ fi
 
 if [[ -n "$DISPLAY" ]]; then
 	virt-viewer -w "$VM_NAME" & 
-	wait
+	wait; sleep 2
 	vm start "$VM_NAME"
 	virt-viewer -w "$VM_NAME" & 
 fi
