@@ -319,6 +319,13 @@ sed -i "s/.*Domain =.*/Domain = ${AD_DS_NAME}/" $IDMAP_CONF
 sed -i '/Nobody-User =/s/^#//' $IDMAP_CONF
 sed -i '/Nobody-Group =/s/^#//' $IDMAP_CONF
 
+#add dns entry for client host netbios
+sshOpts="-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
+expect -c "spawn ssh $sshOpts Administrator@${AD_DC_IP:-$AD_DC_IP_EXT} powershell -Command {Add-DnsServerResourceRecordA -Name $HOST_NETBIOS -ZoneName $AD_DS_NAME -AllowUpdateAny -IPv4Address $(getDefaultIp4)}
+expect {password:} { send \"${AD_DS_SUPERPW}\\r\" }
+expect eof
+"
+
 infoecho "{INFO} Fetch TGT first & Join AD Realm..."
 run "KRB5_TRACE=/dev/stdout kinit -V Administrator@${AD_DS_NAME} <<< ${AD_DS_SUPERPW}"
 if [ $? -ne 0 ]; then
