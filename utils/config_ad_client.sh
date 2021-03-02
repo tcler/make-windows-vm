@@ -458,3 +458,6 @@ fi
 
 infoecho "start rpc-gssd service.."
 systemctl start rpc-gssd
+
+#nfs krb5 mount requires hostname == netbios_name
+hostname $HOST_NETBIOS
