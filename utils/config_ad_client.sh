@@ -85,7 +85,7 @@ done
 # PART: [Dependency] Specify all dependencies during integration related jobs
 #
 
-# To generate unique 15-char NetBIOS name by truncating the original
+# length of NetBIOS name should be less than or equal to 15
 HOST_NETBIOS=${HOST_NETBIOS:-$HOSTNAME}
 [[ ${#HOST_NETBIOS} -gt 15 ]] && {
 	errecho "[ERROR] the length of hostname($HOST_NETBIOS) should be less than 15, try following commands"
@@ -456,8 +456,9 @@ if [ "$config_krb" == "yes" ]; then
 fi
 
 
-infoecho "start rpc-gssd service.."
+infoecho "start rpc-gssd service ..."
 systemctl start rpc-gssd
 
 #nfs krb5 mount requires hostname == netbios_name
+infoecho "hostname $HOST_NETBIOS ..."
 hostname $HOST_NETBIOS
