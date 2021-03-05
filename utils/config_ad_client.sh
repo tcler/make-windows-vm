@@ -355,6 +355,12 @@ fi
 
 infoecho "SUCCESS - AD Integration to Domain ${AD_DS_NAME} successfully."
 
+infoecho "start rpc-gssd service ..."
+systemctl start rpc-gssd
+
+#nfs krb5 mount requires hostname == netbios_name
+infoecho "hostname $HOST_NETBIOS ..."
+hostname $HOST_NETBIOS
 
 #
 # PART: [Extra Functions] Config current client as an NFSv4 IDMAP client
@@ -456,9 +462,3 @@ if [ "$config_krb" == "yes" ]; then
 fi
 
 
-infoecho "start rpc-gssd service ..."
-systemctl start rpc-gssd
-
-#nfs krb5 mount requires hostname == netbios_name
-infoecho "hostname $HOST_NETBIOS ..."
-hostname $HOST_NETBIOS
