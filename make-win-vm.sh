@@ -121,7 +121,8 @@ mount_vdisk() {
 }
 
 is_available_url() { curl --connect-timeout 8 -m 16 --output /dev/null --silent --head --fail $1 &>/dev/null; }
-is_intranet() { is_available_url http://download.devel.redhat.com; }
+intranetDetectUrl="http://down load.devel.r e d hat.com"
+is_intranet() { is_available_url ${intranetDetectUrl// /}; }
 getDefaultIp4() {
 	local nic=$1
 	[[ -z "$nic" ]] &&
@@ -342,12 +343,17 @@ osvariants=$(virt-install --os-variant list 2>/dev/null) ||
 }
 
 is_intranet && {
-	isobaseurl=http://download.eng.pek2.redhat.com/qa/rhts/lookaside/windows-images
-	OpenSSHUrl=http://download.eng.pek2.redhat.com/qa/rhts/lookaside/windows-images/OpenSSH-Win64.zip
+	baseurl=${intranetDetectUrl// /}
+	isobaseurl=${baseurl}/qa/rhts/lookaside/windows-images
+	OpenSSHUrl=${baseurl}/qa/rhts/lookaside/windows-images/OpenSSH-Win64.zip
+	[[ ! -f "$WIN_ISO" ]] && {
+		isoname=${WIN_ISO##*/}
+		[[ -n "$isobaseurl" ]] && while ! curl -f -o $WIN_ISO -L $isobaseurl/$isoname; do sleep 1; done
+	}
 }
 [[ ! -f "$WIN_ISO" ]] && {
-	isoname=${WIN_ISO##*/}
-	[[ -n "$isobaseurl" ]] && while ! curl -f -o $WIN_ISO -L $isobaseurl/$isoname; do sleep 1; done
+	echo -e "{ERROR} *** Windows OSO file '$WIN_ISO' doesn't exist"
+	exit 1
 }
 
 # =======================================================================
