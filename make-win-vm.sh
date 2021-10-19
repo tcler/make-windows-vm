@@ -422,9 +422,12 @@ fi
 
 service libvirtd start
 service virtlogd start
-{ #for RHEL-6 "ERROR  Format cannot be specified for unmanaged storage."
-  virsh pool-define-as --name extpool --type dir --target $VMS_HOME
-  virsh pool-start extpool
+
+#for RHEL-6 "ERROR  Format cannot be specified for unmanaged storage."
+verx=$(rpm -E %rhel)
+[[ "$verx" = 6 ]] && {
+	virsh pool-define-as --name extpool --type dir --target $VMS_HOME
+	virsh pool-start extpool
 }
 
 # VM network parameters
