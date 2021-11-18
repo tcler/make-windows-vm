@@ -174,6 +174,7 @@ Options for vm:
   --xdisk	#add an extra disk
   --hostdev <device from "virsh nodedev-list">
 		#passthrough host device to KVM Guest
+		#see also: virt-install --hostdev=?
 
 Options for windows anwserfile:
   --wim-index <wim image index>
