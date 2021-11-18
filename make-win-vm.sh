@@ -171,6 +171,9 @@ Options for vm:
 		#set static ip for the nic that connect to public network
   --static-ip-int <>
 		#set static ip for the nic that connect to internal libvirt network
+  --xdisk	#add an extra disk
+  --hostdev <device from "virsh nodedev-list">
+		#passthrough host device to KVM Guest
 
 Options for windows anwserfile:
   --wim-index <wim image index>
@@ -275,6 +278,7 @@ ARGS=$(getopt -o hu:p:f \
 	--long force --long overwrite \
 	--long user: \
 	--long xdisk \
+	--long hostdev: \
 	-a -n "$PROG" -- "$@")
 eval set -- "$ARGS"
 while true; do
@@ -308,6 +312,7 @@ while true; do
 	--dfs-target) DFS_TARGET="$2"; DFS=yes; shift 2;;
 	-f|--force|--overwrite) OVERWRITE="yes"; shift 1;;
 	--xdisk) XDISK="yes"; shift 1;;
+	--hostdev) HOST_DEV_LIST+=("$2"); shift 2;;
 	--) shift; break;;
 	*) Usage; exit 1;; 
 	esac
@@ -444,6 +449,12 @@ VNIC_INT_MAC=$(gen_virt_mac)
 echo -e "\n{INFO} vm nic for inside network(mac: $VNIC_INT_MAC) ..."
 VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139,mac=$VNIC_INT_MAC"
 
+# VM hostdev options ...
+HOST_DEV_OPTS=()
+for dev in "${HOST_DEV_LIST[@]}"; do
+	HOST_DEV_OPTS+=("--hostdev=$dev")
+done
+
 # VM disk parameters ...
 ANSF_USB=$VM_PATH/$VM_NAME-ansf-usb.image
 VM_IMAGE=$VM_PATH/$VM_NAME.qcow2
@@ -553,6 +564,7 @@ virt-install --connect=qemu:///system --hvm --accelerate --cpu host \
 	--disk path=$VM_IMAGE,size=$VM_DISKSIZE,format=qcow2,cache=none \
 	--disk path=$ANSF_MEDIA_PATH,$DiskOption \
 	$XDISK_OPTS \
+	"${HOST_DEV_OPTS[@]}" \
 	--serial file,path=$SERIAL_PATH --serial pty \
 	--network $VM_NET_OPT_EXTERNAL --network $VM_NET_OPT_INTERNAL \
 	--vnc --vnclisten 0.0.0.0 --vncport ${VNCPORT} \
