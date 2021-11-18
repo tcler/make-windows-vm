@@ -394,7 +394,7 @@ is_intranet && {
 	OpenSSHUrl=${baseurl}/qa/rhts/lookaside/windows-images/OpenSSH-Win64.zip
 	[[ ! -f "$WIN_ISO" ]] && {
 		isoname=${WIN_ISO##*/}
-		[[ -n "$isobaseurl" ]] && curl_download $WIN_ISO $isobaseurl/$isoname
+		[[ -n "$isobaseurl" ]] && until curl_download $WIN_ISO $isobaseurl/$isoname; do sleep 1; done
 	}
 }
 [[ ! -f "$WIN_ISO" ]] && {
@@ -558,7 +558,7 @@ process_ansf() {
 	[[ -z "$PRODUCT_KEY" ]] &&
 		sed -i '/<ProductKey>/ { :loop /<\/ProductKey>/! {N; b loop}; s;<ProductKey>.*</ProductKey>;; }' $destdir/*.xml
 	unix2dos $destdir/* >/dev/null
-	[[ -n "$OpenSSHUrl" ]] && curl_download $destdir/OpenSSH.zip $OpenSSHUrl
+	[[ -n "$OpenSSHUrl" ]] && until curl_download $destdir/OpenSSH.zip $OpenSSHUrl; do sleep 1; done
 }
 
 echo -e "\n{INFO} make answer file media ..."
