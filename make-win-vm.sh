@@ -175,6 +175,8 @@ Options for vm:
   --hostdev <device from "virsh nodedev-list">
 		#passthrough host device to KVM Guest
 		#see also: virt-install --hostdev=?
+  --hostif,--hostnic,--host-nic <NIC name from "ip -br -c a show">
+		#passthrough host (pci) NIC to KVM Guest
 
 Options for windows anwserfile:
   --wim-index <wim image index>
@@ -280,6 +282,7 @@ ARGS=$(getopt -o hu:p:f \
 	--long user: \
 	--long xdisk \
 	--long hostdev: \
+	--long hostif: --long hostnic: --long host-nic: \
 	-a -n "$PROG" -- "$@")
 eval set -- "$ARGS"
 while true; do
@@ -314,6 +317,7 @@ while true; do
 	-f|--force|--overwrite) OVERWRITE="yes"; shift 1;;
 	--xdisk) XDISK="yes"; shift 1;;
 	--hostdev) HOST_DEV_LIST+=("$2"); shift 2;;
+	--hostif|--hostnic|--host-nic) HOST_NIC_LIST+=("$2"); shift 2;;
 	--) shift; break;;
 	*) Usage; exit 1;; 
 	esac
@@ -451,9 +455,24 @@ echo -e "\n{INFO} vm nic for inside network(mac: $VNIC_INT_MAC) ..."
 VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139,mac=$VNIC_INT_MAC"
 
 # VM hostdev options ...
+nic2pcislot() {
+	local nic=$1
+	local eventf=/sys/class/net/$nic/device/uevent
+	if [[ -e $eventf ]]; then
+		awk -F= '/PCI_SLOT_NAME/{print "pci_" $2}' $eventf | sed 's/[:.]/_/g'
+	fi
+}
 HOST_DEV_OPTS=()
 for dev in "${HOST_DEV_LIST[@]}"; do
 	HOST_DEV_OPTS+=("--hostdev=$dev")
+done
+for nic in "${HOST_NIC_LIST[@]}"; do
+	pcislot=$(nic2pcislot $nic)
+	if [[ -n "$pcislot" ]]; then
+		HOST_DEV_OPTS+=("--hostdev=$pcislot")
+	else
+		echo -e "{WARN} host nic '$nic' is not a pci device" >&2
+	fi
 done
 
 # VM disk parameters ...
