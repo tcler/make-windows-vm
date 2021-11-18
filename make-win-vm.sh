@@ -519,9 +519,9 @@ process_ansf() {
 		-e "s/@DFS_TARGET@/$DFS_TARGET/g" \
 		-e "s/@HOST_NAME@/$HOSTNAME/g" \
 		$destdir/*
-	unix2dos $destdir/* >/dev/null
 	[[ -z "$PRODUCT_KEY" ]] &&
 		sed -i '/<ProductKey>/ { :loop /<\/ProductKey>/! {N; b loop}; s;<ProductKey>.*</ProductKey>;; }' $destdir/*.xml
+	unix2dos $destdir/* >/dev/null
 	[[ -n "$OpenSSHUrl" ]] && while ! curl -L $OpenSSHUrl -f -o $destdir/OpenSSH.zip; do sleep 1; done
 }
 
