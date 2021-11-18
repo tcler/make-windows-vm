@@ -439,6 +439,10 @@ eval setfacl -mu:qemu:rx $VMS_HOME
 WIM_IMAGE_INDEX=${WIM_IMAGE_INDEX:-4}
 [[ "$VM_OS_VARIANT" = win10 ]] && WIM_IMAGE_INDEX=1
 GUEST_HOSTNAME=${GUEST_HOSTNAME:-$VM_NAME}
+[[ ${#GUEST_HOSTNAME} -gt 15 ]] && {
+	echo -e "{ERROR} length of hostname($GUEST_HOSTNAME) should < 16" >&2
+	exit 1
+}
 DOMAIN=${DOMAIN:-win.com}
 ADMINUSER=${ADMINUSER:-Administrator}
 ADMINPASSWORD=${ADMINPASSWORD:-Sesame~0pen}
