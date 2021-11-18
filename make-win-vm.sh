@@ -352,13 +352,49 @@ osvariants=$(virt-install --os-variant list 2>/dev/null) ||
 	}
 }
 
+curl_download() {
+	local filename=$1
+	local url=$2
+	shift 2;
+
+	local curlopts="-f -L"
+	local header=
+	local fsizer=1
+	local fsizel=0
+	local rc=
+
+	[[ -z "$filename" || -z "$url" ]] && {
+		echo "Usage: curl_download <filename> <url> [curl options]" >&2
+		return 1
+	}
+
+	header=$(curl -L -I -s $url|sed 's/\r//')
+	fsizer=$(echo "$header"|awk '/Content-Length:/ {print $2; exit}')
+	if echo "$header"|grep -q 'Accept-Ranges: bytes'; then
+		curlopts+=' --continue-at -'
+	fi
+
+	echo "{VM:INFO} run: curl -o $filename $curl $curlopts $curlOpt $@"
+	curl -o $filename $url $curlopts $curlOpt "$@"
+	rc=$?
+	if [[ $rc != 0 && -s $filename ]]; then
+		fsizel=$(stat --printf %s $filename)
+		if [[ $fsizer -le $fsizel ]]; then
+			echo "{VM:INFO} *** '$filename' already exist $fsizel/$fsizer"
+			rc=0
+		fi
+	fi
+
+	return $rc
+}
+
 is_intranet && {
 	baseurl=${intranetDetectUrl// /}
 	isobaseurl=${baseurl}/qa/rhts/lookaside/windows-images
 	OpenSSHUrl=${baseurl}/qa/rhts/lookaside/windows-images/OpenSSH-Win64.zip
 	[[ ! -f "$WIN_ISO" ]] && {
 		isoname=${WIN_ISO##*/}
-		[[ -n "$isobaseurl" ]] && while ! curl -f -o $WIN_ISO -L $isobaseurl/$isoname; do sleep 1; done
+		[[ -n "$isobaseurl" ]] && curl_download $WIN_ISO $isobaseurl/$isoname
 	}
 }
 [[ ! -f "$WIN_ISO" ]] && {
@@ -522,7 +558,7 @@ process_ansf() {
 	[[ -z "$PRODUCT_KEY" ]] &&
 		sed -i '/<ProductKey>/ { :loop /<\/ProductKey>/! {N; b loop}; s;<ProductKey>.*</ProductKey>;; }' $destdir/*.xml
 	unix2dos $destdir/* >/dev/null
-	[[ -n "$OpenSSHUrl" ]] && while ! curl -L $OpenSSHUrl -f -o $destdir/OpenSSH.zip; do sleep 1; done
+	[[ -n "$OpenSSHUrl" ]] && curl_download $destdir/OpenSSH.zip $OpenSSHUrl
 }
 
 echo -e "\n{INFO} make answer file media ..."
