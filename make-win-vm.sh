@@ -222,6 +222,9 @@ Options for windows anwserfile:
 		#The specified cifs share will be added into dfs target.
   --openssh <url>
 		#url to download OpenSSH-Win64.zip
+  --driver-url <url>
+		#url to download extra drivers to anserfile media:
+		#e.g: --driver-url=urlX --driver-url=urlY
 
 Examples:
   #Setup Active Directory forest Win2012r2:
@@ -277,6 +280,7 @@ ARGS=$(getopt -o hu:p:f \
 	--long parent-domain: \
 	--long parent-ip: \
 	--long openssh: \
+	--long driver-url: \
 	--long dfs-target: \
 	--long force --long overwrite \
 	--long user: \
@@ -313,6 +317,7 @@ while true; do
 	--parent-domain) PARENT_DOMAIN="$2"; shift 2;;
 	--parent-ip) PARENT_IP="$2"; shift 2;;
 	--openssh) OpenSSHUrl="$2"; shift 2;;
+	--driver-url) DRIVER_URLS+=("$2"); shift 2;;
 	--dfs-target) DFS_TARGET="$2"; DFS=yes; shift 2;;
 	-f|--force|--overwrite) OVERWRITE="yes"; shift 1;;
 	--xdisk) XDISK="yes"; shift 1;;
@@ -387,6 +392,7 @@ curl_download() {
 
 	return $rc
 }
+curl_download_x() { until curl_download "$@"; do sleep 1; done; }
 
 is_intranet && {
 	baseurl=${intranetDetectUrl// /}
@@ -394,7 +400,7 @@ is_intranet && {
 	OpenSSHUrl=${baseurl}/qa/rhts/lookaside/windows-images/OpenSSH-Win64.zip
 	[[ ! -f "$WIN_ISO" ]] && {
 		isoname=${WIN_ISO##*/}
-		[[ -n "$isobaseurl" ]] && until curl_download $WIN_ISO $isobaseurl/$isoname; do sleep 1; done
+		[[ -n "$isobaseurl" ]] && curl_download_x $WIN_ISO $isobaseurl/$isoname
 	}
 }
 [[ ! -f "$WIN_ISO" ]] && {
@@ -562,7 +568,16 @@ process_ansf() {
 	[[ -z "$PRODUCT_KEY" ]] &&
 		sed -i '/<ProductKey>/ { :loop /<\/ProductKey>/! {N; b loop}; s;<ProductKey>.*</ProductKey>;; }' $destdir/*.xml
 	unix2dos $destdir/* >/dev/null
-	[[ -n "$OpenSSHUrl" ]] && until curl_download $destdir/OpenSSH.zip $OpenSSHUrl; do sleep 1; done
+
+	[[ -n "$OpenSSHUrl" ]] && curl_download_x $destdir/OpenSSH.zip $OpenSSHUrl
+	if [[ -n "$DRIVER_URLS" ]]; then
+		driverdir=$destdir/drivers
+		mkdir -p $driverdir
+		for _url in "${DRIVER_URLS[@]}"; do
+			_fname=${_url##*/}
+			curl_download_x $driverdir/${_fname} $_url
+		done
+	fi
 }
 
 echo -e "\n{INFO} make answer file media ..."
@@ -574,7 +589,7 @@ eval ls "$@" || {
 media_mp=$(mktemp -d)
 ANSF_MEDIA_PATH=$ANSF_USB
 ANSF_DRIVE_LETTER="D:"
-usbSize=512M
+usbSize=1024M
 create_vdisk $ANSF_USB ${usbSize} vfat
 mount_vdisk $ANSF_USB $media_mp
 process_ansf $media_mp "$@"
