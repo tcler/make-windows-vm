@@ -379,13 +379,13 @@ curl_download() {
 		curlopts+=' --continue-at -'
 	fi
 
-	echo "{VM:INFO} run: curl -o $filename $curl $curlopts $curlOpt $@"
+	echo "{INFO} run: curl -o $filename $curl $curlopts $curlOpt $@"
 	curl -o $filename $url $curlopts $curlOpt "$@"
 	rc=$?
 	if [[ $rc != 0 && -s $filename ]]; then
 		fsizel=$(stat --printf %s $filename)
 		if [[ $fsizer -le $fsizel ]]; then
-			echo "{VM:INFO} *** '$filename' already exist $fsizel/$fsizer"
+			echo "{INFO} *** '$filename' already exist $fsizel/$fsizer"
 			rc=0
 		fi
 	fi
