@@ -199,6 +199,15 @@ if (Test-Path -Path $OpenSSHPath) {
 	Install-Sshd -Path $OpenSSHPath
 }
 
+# check if there is autorun post script in anwser file
+$AutoRunFilePath = "@ANSF_DRIVE_LETTER@\@AUTORUN_DIR@\autorun-post.ps1"
+if (Test-Path -Path $AutoRunFilePath) {
+	Out-Host "`n==> exec autorun-post file"
+	cd "@ANSF_DRIVE_LETTER@\@AUTORUN_DIR@"
+	powershell -ExecutionPolicy Bypass -File autorun-post.ps1
+	cd -
+}
+
 # complete
 Out-Host "`n==> save ipconfig info and generate install complete file !!!"
 ipconfig | out-file -encoding utf8 $LogPath\@IPCONFIG_LOGF@
