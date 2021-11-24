@@ -118,10 +118,10 @@ switch($Stage) {
 		}
 
 		# check if there is autorun script in anwser file
-		$AutoRunFilePath = "@ANSF_DRIVE_LETTER@\@RUN_DIR@\autorun.ps1"
+		$AutoRunFilePath = "@ANSF_DRIVE_LETTER@\@AUTORUN_DIR@\autorun.ps1"
 		if (Test-Path -Path $AutoRunFilePath) {
 			Out-Host "`n==> exec autorun file"
-			cd "@ANSF_DRIVE_LETTER@\@RUN_DIR@"
+			cd "@ANSF_DRIVE_LETTER@\@AUTORUN_DIR@"
 			powershell -ExecutionPolicy Bypass -File autorun.ps1
 			# Reboot to post stage
 			Out-Host "`n==> Reboot to post stage"
@@ -147,7 +147,7 @@ if (Test-Path -Path $OpenSSHPath) {
 $AutoRunFilePath = "@ANSF_DRIVE_LETTER@\@AUTORUN_DIR@\autorun-post.ps1"
 if (Test-Path -Path $AutoRunFilePath) {
 	Out-Host "`n==> exec autorun file"
-	cd "@ANSF_DRIVE_LETTER@\@RUN_DIR@"
+	cd "@ANSF_DRIVE_LETTER@\@AUTORUN_DIR@"
 	powershell -ExecutionPolicy Bypass -File autorun-post.ps1
 	cd -
 }
