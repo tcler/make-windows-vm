@@ -120,6 +120,14 @@ switch($Stage) {
 			$Nic.SetDynamicDNSRegistration($false,$false)
 		}
 
+		# check if there is autorun script in anwser file
+		$AutoRunFilePath = "@ANSF_DRIVE_LETTER@\@AUTORUN_DIR@\autorun.ps1"
+		if (Test-Path -Path $AutoRunFilePath) {
+			Out-Host "`n==> exec autorun file"
+			cd "@ANSF_DRIVE_LETTER@\@AUTORUN_DIR@"
+			powershell -ExecutionPolicy Bypass -File autorun.ps1
+		}
+
 		# Setup AD as Domain Controller
 		Out-Host "`n==> Setup AD as Domain Controller"
 		$SafePasswd=(convertto-securestring "@ADMINPASSWORD@" -asplaintext -force)
