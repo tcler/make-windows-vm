@@ -1,6 +1,13 @@
 
 # Setup a plain windows server
 
+# no use, just ingnore these options
+param (
+	[switch]$cifs = $true,
+	[switch]$nfs = $true,
+	[switch]$kdc = $false
+)
+
 Function Out-Host {
 	$str = $args[0]
 	Write-Host "$str"
@@ -146,7 +153,7 @@ if (Test-Path -Path $OpenSSHPath) {
 # check if there is autorun post script in anwser file
 $AutoRunFilePath = "@ANSF_DRIVE_LETTER@\@AUTORUN_DIR@\autorun-post.ps1"
 if (Test-Path -Path $AutoRunFilePath) {
-	Out-Host "`n==> exec autorun file"
+	Out-Host "`n==> exec autorun-post file"
 	cd "@ANSF_DRIVE_LETTER@\@AUTORUN_DIR@"
 	powershell -ExecutionPolicy Bypass -File autorun-post.ps1
 	cd -
