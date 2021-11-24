@@ -49,67 +49,91 @@ if (Test-Path -Path F:) {
 $PostProg = "@ANSF_DRIVE_LETTER@\postinstall.ps1"
 $RunOnceKey = "HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce"
 
-Out-Host "==> Start postinstall ..."
+$Stage = $args[0]
+if (!$Stage) { $Stage = "base" }
 
-# activate windows with the product key
-# no need to activate: ??? 
+Out-Host "==> Start postinstall $Stage ..."
 
-# turning off firewall
-Out-Host "`n==> turning off firewall"
-Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+switch($Stage) {
+	"base" {
+		# activate windows with the product key
+		# no need to activate: ??? 
 
-# enabling remote desktop
-Out-Host "`n==> enabling remote desktop"
-Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
-#Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-#Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 0
+		# turning off firewall
+		Out-Host "`n==> turning off firewall"
+		Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
 
-# static ip setup
-Out-Host "`n==> static ip setup"
-$INT_STATIC_IP = "@INT_STATIC_IP@"
-$EXT_STATIC_IP = "@EXT_STATIC_IP@"
-if ($INT_STATIC_IP) {
-	$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@VNIC_INT_MAC@'")
-	$oldIntAddr = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $Nic.InterfaceIndex)
-	New-NetIPAddress -InterfaceIndex $Nic.InterfaceIndex -AddressFamily IPv4 -IPAddress $INT_STATIC_IP -PrefixLength $oldIntAddr.PrefixLength -DefaultGateway $Nic.DefaultIPGateway.Item(0)
-}
+		# enabling remote desktop
+		Out-Host "`n==> enabling remote desktop"
+		Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+		#Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+		#Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 0
 
-# change address of EXT NIC from DHCP to STATIC
-$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@VNIC_EXT_MAC@'")
-$oldExtAddr = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $Nic.InterfaceIndex)
-$extStaticIp = $Nic.IPaddress[0].Trim()
-if ($EXT_STATIC_IP) {
-	$extStaticIp=$EXT_STATIC_IP
-} else {
-	Remove-NetIPAddress -IPAddress $extStaticIp -Confirm:$false
-}
-New-NetIPAddress -InterfaceIndex $Nic.InterfaceIndex -AddressFamily IPv4 -IPAddress $extStaticIp -PrefixLength $oldExtAddr.PrefixLength -DefaultGateway $Nic.DefaultIPGateway.Item(0)
+		# static ip setup
+		Out-Host "`n==> static ip setup"
+		$INT_STATIC_IP = "@INT_STATIC_IP@"
+		$EXT_STATIC_IP = "@EXT_STATIC_IP@"
+		if ($INT_STATIC_IP) {
+			$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@VNIC_INT_MAC@'")
+			$oldIntAddr = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $Nic.InterfaceIndex)
+			New-NetIPAddress -InterfaceIndex $Nic.InterfaceIndex -AddressFamily IPv4 -IPAddress $INT_STATIC_IP -PrefixLength $oldIntAddr.PrefixLength -DefaultGateway $Nic.DefaultIPGateway.Item(0)
+		}
 
-# disabling IE ESC (Internet Explorer Enhanced Security Configuration)
-Out-Host "`n==> disabling IE ESC (Internet Explorer Enhanced Security Configuration)"
-$AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
-$UserKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"
-Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0
-Set-ItemProperty -Path $UserKey -Name "IsInstalled" -Value 0
-Stop-Process -Name Explorer
-Out-Host "`n==> IE Enhanced Security Configuration (ESC) has been disabled."
+		# change address of EXT NIC from DHCP to STATIC
+		$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@VNIC_EXT_MAC@'")
+		$oldExtAddr = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $Nic.InterfaceIndex)
+		$extStaticIp = $Nic.IPaddress[0].Trim()
+		if ($EXT_STATIC_IP) {
+			$extStaticIp=$EXT_STATIC_IP
+		} else {
+			Remove-NetIPAddress -IPAddress $extStaticIp -Confirm:$false
+		}
+		New-NetIPAddress -InterfaceIndex $Nic.InterfaceIndex -AddressFamily IPv4 -IPAddress $extStaticIp -PrefixLength $oldExtAddr.PrefixLength -DefaultGateway $Nic.DefaultIPGateway.Item(0)
 
-# disabling shutdown event tracker/shutdown dialog
-Out-Host "`n==> disabling shutdown event tracker/dialog"
-reg add "HKLM\SOFTWARE\Policies\Control\Microsoft\Windows NT\Reliability" /v ShutDownReasonOn /t REG_DWORD /d 0 /f
-reg add "HKLM\SOFTWARE\Policies\Control\Microsoft\Windows NT\Reliability" /v ShutDownReasonUI /t REG_DWORD /d 0 /f
+		# disabling IE ESC (Internet Explorer Enhanced Security Configuration)
+		Out-Host "`n==> disabling IE ESC (Internet Explorer Enhanced Security Configuration)"
+		$AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
+		$UserKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"
+		Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0
+		Set-ItemProperty -Path $UserKey -Name "IsInstalled" -Value 0
+		Stop-Process -Name Explorer
+		Out-Host "`n==> IE Enhanced Security Configuration (ESC) has been disabled."
 
-# adding hostname for the virtual host
-Out-Host "`n==> add host's hostname to $Env:WinDir\system32\drivers\etc\hosts"
-echo "" >> $Env:WinDir\system32\drivers\etc\hosts
-echo "@HOST_IP@ @VIRTHOST@" >> $Env:WinDir\system32\drivers\etc\hosts
+		# disabling shutdown event tracker/shutdown dialog
+		Out-Host "`n==> disabling shutdown event tracker/dialog"
+		reg add "HKLM\SOFTWARE\Policies\Control\Microsoft\Windows NT\Reliability" /v ShutDownReasonOn /t REG_DWORD /d 0 /f
+		reg add "HKLM\SOFTWARE\Policies\Control\Microsoft\Windows NT\Reliability" /v ShutDownReasonUI /t REG_DWORD /d 0 /f
 
-# disabling DNS registration on the network interface
-$MacOfNicInt = "@VNIC_INT_MAC@"
-if ($MacOfNicInt) {
-	Out-Host "`n==> disabling DNS registration on the network interface"
-	$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='$MacOfNicInt'")
-	$Nic.SetDynamicDNSRegistration($false,$false)
+		# adding hostname for the virtual host
+		Out-Host "`n==> add host's hostname to $Env:WinDir\system32\drivers\etc\hosts"
+		echo "" >> $Env:WinDir\system32\drivers\etc\hosts
+		echo "@HOST_IP@ @VIRTHOST@" >> $Env:WinDir\system32\drivers\etc\hosts
+
+		# disabling DNS registration on the network interface
+		$MacOfNicInt = "@VNIC_INT_MAC@"
+		if ($MacOfNicInt) {
+			Out-Host "`n==> disabling DNS registration on the network interface"
+			$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='$MacOfNicInt'")
+			$Nic.SetDynamicDNSRegistration($false,$false)
+		}
+
+		# check if there is autorun script in anwser file
+		$AutoRunFilePath = "@ANSF_DRIVE_LETTER@\@RUN_DIR@\autorun.ps1"
+		if (Test-Path -Path $AutoRunFilePath) {
+			Out-Host "`n==> exec autorun file"
+			cd "@ANSF_DRIVE_LETTER@\@RUN_DIR@"
+			powershell -ExecutionPolicy Bypass -File autorun.ps1
+			# Reboot to post stage
+			Out-Host "`n==> Reboot to post stage"
+			Set-ItemProperty $RunOnceKey "NextRun" "powershell $PostProg post >> @POST_INSTALL_LOG@ 2>&1"
+			shutdown -r -f -t 10 -c "Shutting down in 1 minute: Reboot to complete custom configure after autorun"
+			exit
+		}
+	}
+
+	"post" {
+		#do nothing
+	}
 }
 
 # installing openssh
@@ -117,6 +141,15 @@ $OpenSSHPath = "@ANSF_DRIVE_LETTER@\OpenSSH.zip"
 if (Test-Path -Path $OpenSSHPath) {
 	Out-Host "`n==> install and start ssh server"
 	Install-Sshd -Path $OpenSSHPath
+}
+
+# check if there is autorun post script in anwser file
+$AutoRunFilePath = "@ANSF_DRIVE_LETTER@\@AUTORUN_DIR@\autorun-post.ps1"
+if (Test-Path -Path $AutoRunFilePath) {
+	Out-Host "`n==> exec autorun file"
+	cd "@ANSF_DRIVE_LETTER@\@RUN_DIR@"
+	powershell -ExecutionPolicy Bypass -File autorun-post.ps1
+	cd -
 }
 
 # complete
