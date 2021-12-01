@@ -437,7 +437,7 @@ for H in $(hostname -A); do
 done)
 [[ -z "$VIRTHOST" ]] && {
 	_ipaddr=$(getDefaultIp4)
-	VIRTHOST=$(host ${_ipaddr%/*} | awk '{print $NF}')
+	VIRTHOST=$(host ${_ipaddr%/*} | awk '{print $NF; exit}')
 	VIRTHOST=${VIRTHOST%.}
 	[[ "$VIRTHOST" = *NXDOMAIN* ]] && {
 		VIRTHOST=$_ipaddr
@@ -576,8 +576,10 @@ process_ansf() {
 		-e "s/@HOST_NAME@/$HOSTNAME/g" \
 		-e "s/@AUTORUN_DIR@/$ANSF_AUTORUN_DIR/g" \
 		$destdir/*
-	[[ -z "$PRODUCT_KEY" ]] &&
+	[[ -z "$PRODUCT_KEY" ]] && {
+		echo -e "{INFO} remove ProductKey node from xml ..."
 		sed -i '/<ProductKey>/ { :loop /<\/ProductKey>/! {N; b loop}; s;<ProductKey>.*</ProductKey>;; }' $destdir/*.xml
+	}
 	unix2dos $destdir/* >/dev/null
 
 	[[ -n "$OpenSSHUrl" ]] && curl_download_x $destdir/OpenSSH.zip $OpenSSHUrl
