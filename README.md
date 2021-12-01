@@ -99,8 +99,13 @@ sudo yum install libvirt libvirt-client virt-install virt-viewer qemu-kvm dosfst
 ##### Setup Windows as NFS/CIFS server:
 ```
 ./make-win-vm.sh --image /var/lib/libvirt/images/Win2019-Evaluation.iso \
-    --os-variant win2k19 --vm-name fs --domain nfs.test -p ~Ocgxyz \
-    --cpus 2 --ram 2048 --disk-size 60 --vncport 7799  ./answerfiles-cifs-nfs/* --enable-kdc
+    --os-variant win2k19 --vm-name winfs --domain nfs.test -p ~Ocgxyz \
+    --cpus 4 --ram 4096 --disk-size 80 --vncport 7799 \
+    --driver-url=https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.208-1/virtio-win-guest-tools.exe \
+    --driver-url=https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.208-1/virtio-win-gt-x64.msi \
+    --run-with-reboot='./virtio-win-guest-tools.exe /install /passive'
+    --run-post='./qemu-ga-x86_64.msi /passive'
+    ./answerfiles-cifs-nfs/* --enable-kdc
 ```
 
  ***NOTE:***
