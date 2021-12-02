@@ -172,6 +172,8 @@ Options for vm:
   --static-ip-int <>
 		#set static ip for the nic that connect to internal libvirt network
   --xdisk	#add an extra disk
+  --xcdrom <path>
+		#add extra cdrom to VM
   --hostdev <device from "virsh nodedev-list">
 		#passthrough host device to KVM Guest
 		#see also: virt-install --hostdev=?
@@ -293,6 +295,7 @@ ARGS=$(getopt -o hu:p:f \
 	--long force --long overwrite \
 	--long user: \
 	--long xdisk \
+	--long xcdrom: \
 	--long hostdev: \
 	--long hostif: --long hostnic: --long host-nic: \
 	-a -n "$PROG" -- "$@")
@@ -331,6 +334,7 @@ while true; do
 	--dfs-target) DFS_TARGET="$2"; DFS=yes; shift 2;;
 	-f|--force|--overwrite) OVERWRITE="yes"; shift 1;;
 	--xdisk) XDISK="yes"; shift 1;;
+	--xcdrom) XCDROM_OPTS+=("--disk=$2,device=cdrom"); shift 2;;
 	--hostdev) HOST_DEV_LIST+=("$2"); shift 2;;
 	--hostif|--hostnic|--host-nic) HOST_NIC_LIST+=("$2"); shift 2;;
 	--) shift; break;;
@@ -666,6 +670,7 @@ virt-install --connect=qemu:///system --hvm --accelerate --cpu host \
 	--disk path=$VM_IMAGE,size=$VM_DISKSIZE,format=qcow2,cache=none \
 	--disk path=$ANSF_MEDIA_PATH,$DiskOption \
 	$XDISK_OPTS \
+	"${XCDROM_OPTS[@]}" \
 	"${HOST_DEV_OPTS[@]}" \
 	--serial file,path=$SERIAL_PATH --serial pty \
 	--network $VM_NET_OPT_EXTERNAL --network $VM_NET_OPT_INTERNAL \
