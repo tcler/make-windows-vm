@@ -736,7 +736,7 @@ eject_cds $VM_NAME  $WIN_ISO $ANSF_MEDIA_PATH
 # Save relative variables into a log file
 echo -e "\n{INFO} show guest info:"
 VM_INT_IP=$(awk '/^ *IPv4 Address/ {if ($NF ~ /^192/) print $NF}' $WIN_IPCONFIG_LOG)
-VM_EXT_IP=$(awk '/^ *IPv4 Address/ {if ($NF !~ /^192/) print $NF}' $WIN_IPCONFIG_LOG)
+VM_EXT_IP=$(awk '/^ *IPv4 Address/ {if ($NF !~ /^(192|169.254)/) print $NF}' $WIN_IPCONFIG_LOG)
 VM_EXT_IP6=$(awk '/^ *IPv6 Address/ {printf("%s,", $NF)}' $WIN_IPCONFIG_LOG)
 [[ -z "$VM_EXT_IP" ]] && VM_EXT_IP=${VM_EXT_IP6%%,*}
 
