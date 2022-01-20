@@ -112,16 +112,16 @@ sudo yum install libvirt libvirt-client virt-install virt-viewer qemu-kvm dosfst
 1. All the examples above provide as much details as possible but generally not all the parameters above are
 mandatory. To get more help, see [README-options](./README-options.md) or just use -h (--help).
 
-2. libguestfs can't mount ntfs after RHEL-7.2, because libguestfs-winsupport was disabled for some reason. 
+2. If the password of windows is too weak, it will fail to deploy windows.
+
+3. all examples above test pass on Windows Server 2012,2012r2,2016,2019; and Windows 10 pass on basic ./answerfiles/\* on Host(RHEL-7 RHEL-8 Fedora-3X)
+
+4. \[deprecated] libguestfs can't mount ntfs after RHEL-7.2, because libguestfs-winsupport was disabled for some reason. 
 Now it seems only RHEL Server provides libguestfs-winsupport.
 
-3. For users of other distributions, we provide a workaround: Use USB as answer file media type instead of iso, 
+5. \[deprecated] For users of other distributions, we provide a workaround: Use USB as answer file media type instead of iso, 
 thus we can write windows guest info on USB instead and still could read them from host (This is done automatically 
 so no extra operations are needed).
-
-4. If the password of windows is too weak, it will fail to deploy windows.
-
-5. all examples above test pass on Windows Server 2012,2012r2,2016,2019; and Windows 10 pass on basic ./answerfiles/\*
 
 
 ## Tips
