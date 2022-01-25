@@ -167,10 +167,6 @@ Options for vm:
   --vmshome <>  #folder to save vm dir/images
   -f, --force	#Force to set vm-name, regardless whether the name is in use or not.
   --net <>	#libvirt network name, default value: 'default'
-  --static-ip-ext <>
-		#set static ip for the nic that connect to public network
-  --static-ip-int <>
-		#set static ip for the nic that connect to internal libvirt network
   --xdisk	#add an extra disk
   --xcdrom <path>
 		#add extra cdrom to VM
@@ -179,6 +175,10 @@ Options for vm:
 		#see also: virt-install --hostdev=?
   --hostif,--hostnic,--host-nic <NIC name from "ip -br -c a show">
 		#passthrough host (pci) NIC to KVM Guest
+  --mac-ext <>
+		#set mac addr for the nic that connect to public network
+  --mac-int <>
+		#set mac addr for the nic that connect to internal libvirt network
 
 Options for windows anwserfile:
   --wim-index <wim image index>
@@ -190,6 +190,10 @@ Options for windows anwserfile:
   -p, --password <password>
 		#*Specify user's password for windows. for configure AD/DC:
 		  must use a mix of uppercase letters, lowercase letters, numbers, and symbols
+  --static-ip-ext <>
+		#set static ip for the nic that connect to public network
+  --static-ip-int <>
+		#set static ip for the nic that connect to internal libvirt network
 
   --ad-forest-level <Default|Win2008|Win2008R2|Win2012|Win2012R2|WinThreshold>
 		#Specify active directory forest level.
@@ -503,16 +507,16 @@ verx=$(rpm -E %rhel)
 # VM network parameters
 NetMode=macvtap
 [[ "$NetMode" = macvtap ]] && MacvtapMode=bridge
-VNIC_EXT_MAC=$(gen_virt_mac 01)
+[[ -z "$MAC_EXT" ]] && MAC_EXT=$(gen_virt_mac 01)
 DEFAULT_NIC=$(get_default_if dev)
-echo -e "\n{INFO} vm nic for reach outside network(mac: $VNIC_EXT_MAC) (source:$DEFAULT_NIC, NetMode:$NetMode) ..."
-VM_NET_OPT_EXTERNAL="type=direct,source=$DEFAULT_NIC,source_mode=$MacvtapMode,mac=$VNIC_EXT_MAC"
+echo -e "\n{INFO} vm nic for reach outside network(mac: $MAC_EXT) (source:$DEFAULT_NIC, NetMode:$NetMode) ..."
+VM_NET_OPT_EXTERNAL="type=direct,source=$DEFAULT_NIC,source_mode=$MacvtapMode,mac=$MAC_EXT"
 
 VM_NET_NAME=${VNET_NAME:-default}
 HOST_IP=$(virsh net-dumpxml -- $VM_NET_NAME|sed -rn '/^ *<ip address=.([0-9.]+).*$/{s//\1/; p}')
-VNIC_INT_MAC=$(gen_virt_mac)
-echo -e "\n{INFO} vm nic for inside network(mac: $VNIC_INT_MAC) ..."
-VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139,mac=$VNIC_INT_MAC"
+[[ -z "$MAC_INT" ]] && MAC_INT=$(gen_virt_mac)
+echo -e "\n{INFO} vm nic for inside network(mac: $MAC_INT) ..."
+VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139,mac=$MAC_INT"
 
 # VM hostdev options ...
 nic2pcislot() {
@@ -565,8 +569,8 @@ process_ansf() {
 		-e "s/@INSTALL_COMPLETE_FILE@/$INSTALL_COMPLETE_FILE/g" \
 		-e "s/@AD_FOREST_LEVEL@/$AD_FOREST_LEVEL/g" \
 		-e "s/@AD_DOMAIN_LEVEL@/$AD_DOMAIN_LEVEL/g" \
-		-e "s/@VNIC_INT_MAC@/$VNIC_INT_MAC/g" \
-		-e "s/@VNIC_EXT_MAC@/$VNIC_EXT_MAC/g" \
+		-e "s/@VNIC_INT_MAC@/$MAC_INT/g" \
+		-e "s/@VNIC_EXT_MAC@/$MAC_EXT/g" \
 		-e "s/@INT_STATIC_IP@/$INT_STATIC_IP/g" \
 		-e "s/@EXT_STATIC_IP@/$EXT_STATIC_IP/g" \
 		-e "s/@VIRTHOST@/$VIRTHOST/g" \
