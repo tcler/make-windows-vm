@@ -14,35 +14,42 @@
 ## Files layout:
 ```
 make-windows-vm/
-├── answerfiles
-│   ├── autounattend.xml.in
-│   └── postinstall.ps1.in
-├── answerfiles-addsdomain
-│   ├── autounattend.xml.in -> ../answerfiles/autounattend.xml.in
-│   └── postinstall.ps1.in
-├── answerfiles-addsforest
-│   ├── autounattend.xml.in -> ../answerfiles/autounattend.xml.in
-│   └── postinstall.ps1.in
-├── answerfiles-cifs-nfs
-│   ├── autounattend.xml.in -> ../answerfiles/autounattend.xml.in
-│   └── postinstall.ps1.in
+├── answer-file-generator.sh
+├── AnswerFileTemplates
+│   ├── addsdomain
+│   │   ├── autounattend.xml.in -> ../base/autounattend.xml.in
+│   │   └── postinstall.ps1.in
+│   ├── addsforest
+│   │   ├── autounattend.xml.in -> ../base/autounattend.xml.in
+│   │   └── postinstall.ps1.in
+│   ├── base
+│   │   ├── autounattend.xml.in
+│   │   └── postinstall.ps1.in
+│   └── cifs-nfs
+│       ├── autounattend.xml.in -> ../base/autounattend.xml.in
+│       └── postinstall.ps1.in
+├── LICENSE
 ├── make-win-vm.sh
 ├── README.md
+├── README-options.md
 └── utils
-    ├── test-cert.sh
-    ├── test-cifs-nfs.sh
-    └── test-ssh.sh
+    ├── config_ad_client.sh
+    ├── gen_virt_mac.sh
+    ├── make-samba-server.sh
+    ├── test-cert.sh
+    ├── test-cifs-nfs.sh
+    └── test-ssh.sh
 ```
 
-***Note***: There are four answerfiles{, -addsdomain, -addsforest, -cifs-nfs} directories for different usages. 
-Generally, answerfiles are used to deploy windows automatically. Usages are listed below:
+***Note***: There are four answer file templates AnswerFileTemplates/{base,addsdomain,addsforest,cifs-nfs} directories for different usages. 
+Generally, answer file is used to deploy windows automatically. Usages are listed below:
 
-| Directory              | Usage                                         |
-| ---------------------- | --------------------------------------------- |
-| answerfiles            | windows server without any services cofigured |
-| answerfiles-addsdomain | active directory child domain                 |
-| answerfiles-addsforest | active directory forest                       |
-| answerfiles-cifs-nfs   | windows NFS/CIFS server                       |
+| Directory                      | Usage                                         |
+| ------------------------------ | --------------------------------------------- |
+| AnswerFileTemplates/base       | windows server without any services cofigured |
+| AnswerFileTemplates/addsdomain | active directory child domain                 |
+| AnswerFileTemplates/addsforest | active directory forest                       |
+| AnswerFileTemplates/cifs-nfs   | windows NFS/CIFS server                       |
 
 ## Dependencies:
 
@@ -84,17 +91,17 @@ sudo yum install libvirt libvirt-client virt-install virt-viewer qemu-kvm dosfst
 ```
 ./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2.iso --os-variant win2k12r2 \
     --product-key W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9 --vm-name rootds --domain ad.test -p ~Ocgxyz --cpus 2 \
-    --ram 2048 --disk-size 20 --vncport 7777 --ad-forest-level Win2012R2  ./answerfiles-addsforest/*
+    --ram 2048 --disk-size 20 --vncport 7777 --ad-forest-level Win2012R2  ./AnswerFileTemplates/addsforest/*
 
 ./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2-Evaluation.iso \
     --os-variant win2k12r2 --vm-name rootds --domain kernel.test -p ~Ocgabc \
-    --cpus 2 --ram 2048 --disk-size 20 --vncport 7788 ./answerfiles-addsforest/*
+    --cpus 2 --ram 2048 --disk-size 20 --vncport 7788 ./AnswerFileTemplates/addsforest/*
 ```
 ##### Setup Active Directory child domain:
 ```
 ./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2-Evaluation.iso \
     --os-variant win2k12r2 --vm-name child --parent-domain kernel.test --domain fs  -p ~Ocgxyz \
-    --cpus 2 --ram 2048 --disk-size 20 --vncport 7789 ./answerfiles-addsdomain/* --parent-ip $addr
+    --cpus 2 --ram 2048 --disk-size 20 --vncport 7789 ./AnswerFileTemplates/addsdomain/* --parent-ip $addr
 ```
 ##### Setup Windows as NFS/CIFS server:
 ```
@@ -105,7 +112,7 @@ sudo yum install libvirt libvirt-client virt-install virt-viewer qemu-kvm dosfst
     --driver-url=https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.208-1/virtio-win-gt-x64.msi \
     --run-with-reboot='./virtio-win-guest-tools.exe /install /passive'
     --run-post='./qemu-ga-x86_64.msi /passive'
-    ./answerfiles-cifs-nfs/* --enable-kdc
+    ./AnswerFileTemplates/cifs-nfs/* --enable-kdc
 ```
 
  ***NOTE:***
@@ -114,7 +121,7 @@ mandatory. To get more help, see [README-options](./README-options.md) or just u
 
 2. If the password of windows is too weak, it will fail to deploy windows.
 
-3. all examples above test pass on Windows Server 2012,2012r2,2016,2019; and Windows 10 pass on basic ./answerfiles/\* on Host(RHEL-7 RHEL-8 Fedora-3X)
+3. all examples above test pass on Windows Server 2012,2012r2,2016,2019; and Windows 10 pass on basic ./AnswerFileTemplates/base/\* on Host(RHEL-7 RHEL-8 Fedora-3X)
 
 4. \[deprecated] libguestfs can't mount ntfs after RHEL-7.2, because libguestfs-winsupport was disabled for some reason. 
 Now it seems only RHEL Server provides libguestfs-winsupport.

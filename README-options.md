@@ -18,7 +18,7 @@
 | --image-dir <>               | /home/virt-images   | No            |                                              |
 | --openssh <>                 |                     | No            |                                              |
 | --os-variant <>              |                     | Yes           |                                              |
-| --parent-domain <>           |                     | Conditionally | Mandatory when using answerfiles-addsdomain/ |
+| --parent-domain <>           |                     | Conditionally | Mandatory when using AnswerFileTemplates/addsdomain/ |
 | --parent-ip <>               |                     | Conditionally | Ditto                                        |
 | --product-key <>             |                     | Conditionally | Mandatory when not using evaluation versions |
 | -p, --password <>            | Sesame~0pen         | No            |                                              |
@@ -70,7 +70,7 @@ Specify VM disk size in GB (usually with .qcow2 format).
 Specify windows domain name.  
 
 **--enable-kdc**  
-Enable kerberos service. This is only used with answerfiles-cifs-nfs/ to test NFS/CIFS
+Enable kerberos service. This is only used with AnswerFileTemplates/cifs-nfs/ to test NFS/CIFS
 exporting option "sec=krb5,krb5i,krb5p".  
 
 **-h, --help**  
