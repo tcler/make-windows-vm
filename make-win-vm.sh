@@ -218,7 +218,7 @@ Options for windows anwserfile:
 		#The domain functional level cannot be lower than the forest functional level,
 		#but it can be higher. The default is automatically computed and set.
 		#see: https://docs.microsoft.com/en-us/powershell/module/addsdeployment/install-addsforest?view=win10-ps
-  --enable-kdc  #enable AD KDC service(in case use answerfiles-cifs-nfs/postinstall.ps1)
+  --enable-kdc  #enable AD KDC service(in case use AnswerFileTemplates/cifs-nfs/postinstall.ps1)
 		#- to do nfs/cifs krb5 test
   --parent-domain <parent-domain>
 		#Domain name of an existing domain.
@@ -242,26 +242,26 @@ Examples:
   #Setup Active Directory forest Win2012r2:
   ./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2.iso --os-variant win2k12r2 \
     --product-key W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9 --vmname rootds --domain ad.test -p ~Ocgxyz --cpus 2 \
-    --ram 2048 --disk-size 20 --vncport 7777 --ad-forest-level Win2012R2  ./answerfiles-addsforest/*
+    --ram 2048 --disk-size 20 --vncport 7777 --ad-forest-level Win2012R2  ./AnswerFileTemplates/addsforest/*
 
   ./make-win-vm.sh --image /var/lib/libvirt/images/Win2012r2-Evaluation.iso \
     --os-variant win2k12r2 --vmname rootds --domain kernel.test -p ~Ocgabc \
-    --cpus 2 --ram 2048 --disk-size 20 --vncport 7788 ./answerfiles-addsforest/*
+    --cpus 2 --ram 2048 --disk-size 20 --vncport 7788 ./AnswerFileTemplates/addsforest/*
 
   #Setup Active Directory child domain:
   ./make-win-vm.sh --image /var/lib/libvirt/images/Win2016-Evaluation.iso \
     --os-variant win2k16 --vmname child --parent-domain kernel.test --domain fs  -p ~Ocgxyz \
-    --cpus 2 --ram 2048 --disk-size 20 --vncport 7789 ./answerfiles-addsdomain/* --parent-ip \$addr
+    --cpus 2 --ram 2048 --disk-size 20 --vncport 7789 ./AnswerFileTemplates/addsdomain/* --parent-ip \$addr
 
   #Setup Windows as NFS/CIFS server, and enable KDC(--enable-kdc):
   ./make-win-vm.sh --image /var/lib/libvirt/images/Win2019-Evaluation.iso \
     --os-variant win2k19 --vmname win2019-cifs-nfs --domain cifs-nfs.test -p ~Ocgxyz \
-    --cpus 4 --ram 4096 --disk-size 60 --vncport 7799  ./answerfiles-cifs-nfs/* --enable-kdc
+    --cpus 4 --ram 4096 --disk-size 60 --vncport 7799  ./AnswerFileTemplates/cifs-nfs/* --enable-kdc
 
   #Setup Windows as NFS/CIFS server, and enable KDC(--enable-kdc), and add dfs target:
   ./make-win-vm.sh --image /var/lib/libvirt/images/Win2019-Evaluation.iso \
     --os-variant win2k19 --vmname win2019-cifs-nfs --domain cifs-nfs.test -p ~Ocgxyz \
-    --cpus 4 --ram 4096 --disk-size 60 --vncport 7799  ./answerfiles-cifs-nfs/* --enable-kdc \
+    --cpus 4 --ram 4096 --disk-size 60 --vncport 7799  ./AnswerFileTemplates/cifs-nfs/* --enable-kdc \
     --dfs-target hostname:cifs
 EOF
 }
