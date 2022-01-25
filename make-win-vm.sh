@@ -280,6 +280,8 @@ ARGS=$(getopt -o hu:p:f \
 	--long cpus: \
 	--long disk-size: \
 	--long net: \
+	--long mac-ext: \
+	--long mac-int: \
 	--long static-ip-ext: \
 	--long static-ip-int: \
 	--long os-variant: \
@@ -321,6 +323,8 @@ while true; do
 	--cpus) VM_CPUS="$2"; shift 2;;
 	--disk-size) VM_DISKSIZE="$2"; shift 2;;
 	--net) VNET_NAME="$2"; shift 2;;
+	--mac-ext) MAC_EXT="$2"; shift 2;;
+	--mac-int) MAC_INT="$2"; shift 2;;
 	--static-ip-ext) EXT_STATIC_IP="$2"; shift 2;;
 	--static-ip-int) INT_STATIC_IP="$2"; shift 2;;
 	--os-variant) VM_OS_VARIANT="$2"; shift 2;;
