@@ -80,22 +80,22 @@ switch($Stage) {
 		Out-Host "`n==> static ip setup"
 		$INT_STATIC_IP = "@INT_STATIC_IP@"
 		$EXT_STATIC_IP = "@EXT_STATIC_IP@"
+		$NicInt=(Get-NetAdapter | Sort-Object -Property InterfaceIndex)[0]
+		$NicExt=(Get-NetAdapter | Sort-Object -Property InterfaceIndex)[1]
 		if ($INT_STATIC_IP) {
-			$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@VNIC_INT_MAC@'")
-			$oldIntAddr = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $Nic.InterfaceIndex)
-			New-NetIPAddress -InterfaceIndex $Nic.InterfaceIndex -AddressFamily IPv4 -IPAddress $INT_STATIC_IP -PrefixLength $oldIntAddr.PrefixLength -DefaultGateway $Nic.DefaultIPGateway.Item(0)
+			$oldIntAddr = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $NicInt.InterfaceIndex)
+			New-NetIPAddress -InterfaceIndex $NicInt.InterfaceIndex -AddressFamily IPv4 -IPAddress $INT_STATIC_IP -PrefixLength $oldIntAddr.PrefixLength -DefaultGateway $NicInt.DefaultIPGateway.Item(0)
 		}
 
 		# change address of EXT NIC from DHCP to STATIC
-		$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@VNIC_EXT_MAC@'")
-		$oldExtAddr = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $Nic.InterfaceIndex)
-		$extStaticIp = $Nic.IPaddress[0].Trim()
+		$oldExtAddr = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $NicExt.InterfaceIndex)
+		$extStaticIp = $NicExt.IPaddress[0].Trim()
 		if ($EXT_STATIC_IP) {
 			$extStaticIp=$EXT_STATIC_IP
 		} else {
 			Remove-NetIPAddress -IPAddress $extStaticIp -Confirm:$false
 		}
-		New-NetIPAddress -InterfaceIndex $Nic.InterfaceIndex -AddressFamily IPv4 -IPAddress $extStaticIp -PrefixLength $oldExtAddr.PrefixLength -DefaultGateway $Nic.DefaultIPGateway.Item(0)
+		New-NetIPAddress -InterfaceIndex $NicExt.InterfaceIndex -AddressFamily IPv4 -IPAddress $extStaticIp -PrefixLength $oldExtAddr.PrefixLength -DefaultGateway $NicExt.DefaultIPGateway.Item(0)
 
 		# disabling IE ESC (Internet Explorer Enhanced Security Configuration)
 		Out-Host "`n==> disabling IE ESC (Internet Explorer Enhanced Security Configuration)"
@@ -117,11 +117,9 @@ switch($Stage) {
 		echo "@HOST_IP@ @VIRTHOST@" >> $Env:WinDir\system32\drivers\etc\hosts
 
 		# disabling DNS registration on the network interface
-		$MacOfNicInt = "@VNIC_INT_MAC@"
-		if ($MacOfNicInt) {
+		if ($NicInt) {
 			Out-Host "`n==> disabling DNS registration on the network interface"
-			$Nic=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='$MacOfNicInt'")
-			$Nic.SetDynamicDNSRegistration($false,$false)
+			$NicInt.SetDynamicDNSRegistration($false,$false)
 		}
 
 		# check if there is autorun script in anwser file
