@@ -662,9 +662,10 @@ virt-install --connect=qemu:///system --hvm --accelerate --cpu host \
 	--disk path=$ANSF_MEDIA_PATH,$DiskOption \
 	$XDISK_OPTS \
 	"${XCDROM_OPTS[@]}" \
+	--network $VM_NET_OPT_INTERNAL \
+	--network $VM_NET_OPT_EXTERNAL \
 	"${HOST_DEV_OPTS[@]}" \
 	--serial file,path=$SERIAL_PATH --serial pty \
-	--network $VM_NET_OPT_EXTERNAL --network $VM_NET_OPT_INTERNAL \
 	--vnc --vnclisten 0.0.0.0 --vncport ${VNCPORT} \
 	$consoleOpt
 ret=$?
