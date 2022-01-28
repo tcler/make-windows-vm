@@ -76,7 +76,7 @@ mount_vdisk() {
 	local offset=
 
 	if fdisk -l -o Start "$path" &>/dev/null; then
-		read offset sizelimit < <(fdisk -l -o Start "$path" |
+		read offset sizelimit < <(fdisk -l -o Start,Sectors "$path" |
 			awk -v N=$partN '
 				/^Units:/ { unit=$(NF-1); offset=0; }
 				/^Start/ {
