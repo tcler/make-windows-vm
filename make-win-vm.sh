@@ -757,6 +757,16 @@ cat <<-EOF | tee $VM_INFO_FILE
 	WIN_NFS_SHARE2=/nfssch
 EOF
 
+if [[ -z "$VM_INT_IP" || -z "$VM_EXT_IP" ]]; then
+	echo -e "\n{ERROR} VM_INT_IP($VM_INT_IP) or VM_EXT_IP($VM_EXT_IP) is nil"
+
+	echo "[cat $WIN_IPCONFIG_LOG]:"
+	cat $WIN_IPCONFIG_LOG
+	echo "[cat $WIN_INSTALL_LOG]:"
+	cat $WIN_INSTALL_LOG
+	exit 1
+fi
+
 # Test SSH connection
 if [[ -n "$OpenSSHUrl" ]]; then
 	echo -e "\n{INFO} run follow command to test SSH connection"
