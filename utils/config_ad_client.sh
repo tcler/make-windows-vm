@@ -333,6 +333,7 @@ if [ $? -ne 0 ]; then
 	exit 1;
 fi
 run "kinit Administrator <<< ${AD_DS_SUPERPW}"
+run "klist"
 
 # Join host to an Active Directory (AD), and update the DNS
 run "net ads join --kerberos"
