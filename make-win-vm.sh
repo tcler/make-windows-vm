@@ -485,7 +485,7 @@ fi
 if [[ "$OVERWRITE" = "yes" ]]; then
 	virsh destroy $VM_NAME
 	virsh undefine $VM_NAME --remove-all-storage
-fi
+fi 2>/dev/null
 
 service libvirtd start
 service virtlogd start
@@ -725,7 +725,7 @@ dos2unix $WIN_INSTALL_LOG $WIN_IPCONFIG_LOG
 
 # Eject CDs
 echo -e "\n{INFO} eject media ..."
-eject_cds $VM_NAME  $WIN_ISO $ANSF_MEDIA_PATH
+eject_cds $VM_NAME $VM_PATH/${WIN_ISO##*/}  #$ANSF_MEDIA_PATH
 
 # Save relative variables into a log file
 echo -e "\n{INFO} show guest info:"
