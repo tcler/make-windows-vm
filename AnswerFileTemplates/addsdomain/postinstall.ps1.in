@@ -78,8 +78,11 @@ switch($Stage) {
 		$EXT_STATIC_IP = "@EXT_STATIC_IP@"
 		$NicInt=(Get-NetAdapter | Sort-Object -Property InterfaceIndex)[0]
 		$NicExt=(Get-NetAdapter | Sort-Object -Property InterfaceIndex)[1]
-		$ip = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $NicInt.InterfaceIndex).[0].Trim()
-		if ($ip -notlike "192.168.12[23].*") { $NicInt,$NicExt = $NicExt,$NicInt }
+		$ifIP = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $NicInt.InterfaceIndex).[0].Trim()
+		#here assume that the interal network is always the libvirt 'default' network(192.168.122.0)
+		if ($ifIP -notlike "192.168.12[23].*") { $NicInt,$NicExt = $NicExt,$NicInt }
+		#assume the NIC that connected to internal network use model=rtl8139, and another one use model=e1000
+		#if ($NicInt.ifDesc -notlike "*8139*") { $NicInt,$NicExt = $NicExt,$NicInt }
 
 		if ($INT_STATIC_IP) {
 			$oldIntAddrs = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $NicInt.InterfaceIndex)
