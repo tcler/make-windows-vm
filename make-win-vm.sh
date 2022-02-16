@@ -253,7 +253,7 @@ Examples:
 
   #Setup Windows as NFS/CIFS server, and enable KDC(--enable-kdc), and add dfs target:
   ./make-win-vm.sh --image /var/lib/libvirt/images/Win2019-Evaluation.iso \
-    --os-variant win2k19 --vmname win2019-cifs-nfs --domain cifs-nfs.test -p ~Ocgxyz \
+    --os-variant win2k19 --vmname win2019-cifsnfs --domain cifs-nfs.test -p ~Ocgxyz \
     --cpus 4 --ram 4096 --disk-size 60 --vncport 7799  ./AnswerFileTemplates/cifs-nfs/* --enable-kdc \
     --dfs-target hostname:cifs
 EOF
