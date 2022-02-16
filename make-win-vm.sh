@@ -502,7 +502,7 @@ NetMode=macvtap
 [[ "$NetMode" = macvtap ]] && MacvtapMode=bridge
 DEFAULT_NIC=$(get_default_if dev)
 echo -e "\n{INFO} vm nic for reach outside network(source:$DEFAULT_NIC, NetMode:$NetMode) ..."
-VM_NET_OPT_EXTERNAL="type=direct,source=$DEFAULT_NIC,source_mode=$MacvtapMode"
+VM_NET_OPT_EXTERNAL="type=direct,source=$DEFAULT_NIC,source_mode=$MacvtapMode,model=e1000"
 
 VM_NET_NAME=${VNET_NAME:-default}
 HOST_IP=$(virsh net-dumpxml -- $VM_NET_NAME|sed -rn '/^ *<ip address=.([0-9.]+).*$/{s//\1/; p}')
