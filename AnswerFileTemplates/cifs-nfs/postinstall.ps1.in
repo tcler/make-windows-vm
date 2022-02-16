@@ -81,20 +81,23 @@ switch($Stage) {
 		$EXT_STATIC_IP = "@EXT_STATIC_IP@"
 		$NicInt=(Get-NetAdapter | Sort-Object -Property InterfaceIndex)[0]
 		$NicExt=(Get-NetAdapter | Sort-Object -Property InterfaceIndex)[1]
+		$ip = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $NicInt.InterfaceIndex).[0].Trim()
+		if ($ip -notlike "192.168.12[23].*") { $NicInt,$NicExt = $NicExt,$NicInt }
+
 		if ($INT_STATIC_IP) {
-			$oldIntAddr = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $NicInt.InterfaceIndex)
-			New-NetIPAddress -InterfaceIndex $NicInt.InterfaceIndex -AddressFamily IPv4 -IPAddress $INT_STATIC_IP -PrefixLength $oldIntAddr.PrefixLength -DefaultGateway $NicInt.DefaultIPGateway.Item(0)
+			$oldIntAddrs = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $NicInt.InterfaceIndex)
+			New-NetIPAddress -InterfaceIndex $NicInt.InterfaceIndex -AddressFamily IPv4 -IPAddress $INT_STATIC_IP -PrefixLength $oldIntAddrs[0].PrefixLength -DefaultGateway $NicInt.DefaultIPGateway.Item(0)
 		}
 
 		# change address of EXT NIC from DHCP to STATIC
-		$oldExtAddr = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $NicExt.InterfaceIndex)
-		$extStaticIp = $NicExt.IPaddress[0].Trim()
+		$oldExtAddrs = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $NicExt.InterfaceIndex)
+		$extStaticIp = $oldExtAddrs[0].Trim()
 		if ($EXT_STATIC_IP) {
 			$extStaticIp=$EXT_STATIC_IP
 		} else {
 			Remove-NetIPAddress -IPAddress $extStaticIp -Confirm:$false
 		}
-		New-NetIPAddress -InterfaceIndex $NicExt.InterfaceIndex -AddressFamily IPv4 -IPAddress $extStaticIp -PrefixLength $oldExtAddr.PrefixLength -DefaultGateway $NicExt.DefaultIPGateway.Item(0)
+		New-NetIPAddress -InterfaceIndex $NicExt.InterfaceIndex -AddressFamily IPv4 -IPAddress $extStaticIp -PrefixLength $oldExtAddrs[0].PrefixLength -DefaultGateway $NicExt.DefaultIPGateway.Item(0)
 
 		# disabling IE ESC (Internet Explorer Enhanced Security Configuration)
 		Out-Host "`n==> disabling IE ESC (Internet Explorer Enhanced Security Configuration)"
