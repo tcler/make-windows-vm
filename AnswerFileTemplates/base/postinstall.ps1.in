@@ -76,43 +76,6 @@ switch($Stage) {
 		#Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
 		#Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 0
 
-		# static ip setup
-		Out-Host "`n==> static ip setup"
-		$INT_STATIC_IP = "@INT_STATIC_IP@"
-		$EXT_STATIC_IP = "@EXT_STATIC_IP@"
-		$NicInt=(Get-NetAdapter | Sort-Object -Property InterfaceIndex)[0]
-		$NicExt=(Get-NetAdapter | Sort-Object -Property InterfaceIndex)[1]
-		$ifIP = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $NicInt.InterfaceIndex)[0].IPAddress.Trim()
-		#here assume that the interal network is always the libvirt 'default' network(192.168.122.0)
-		if ($ifIP -notlike "192.168.12[23].*") { $NicInt,$NicExt = $NicExt,$NicInt }
-		#assume the NIC that connected to internal network use model=rtl8139, and another one use model=e1000
-		#if ($NicInt.ifDesc -notlike "*8139*") { $NicInt,$NicExt = $NicExt,$NicInt }
-
-		if ($INT_STATIC_IP) {
-			$oldIntAddrs = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $NicInt.InterfaceIndex)
-			New-NetIPAddress -InterfaceIndex $NicInt.InterfaceIndex -AddressFamily IPv4 -IPAddress $INT_STATIC_IP -PrefixLength $oldIntAddrs[0].PrefixLength -DefaultGateway $NicInt.DefaultIPGateway.Item(0)
-		}
-
-		# change address of EXT NIC from DHCP to STATIC
-		while ($true) {
-			$oldExtAddrs = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $NicExt.InterfaceIndex)
-			if ($oldExtAddrs = $null -or $oldExtAddrs[0].IPAddress.Trim() -like "169.254.*") {
-				Start-sleep -s 5
-				Out-Host "`n==> renew IP on Nic($NicExt.ifAlias)"
-				ipconfig /release $NicExt.ifAlias
-				ipconfig /renew $NicExt.ifAlias
-			} else {
-				break
-			}
-		}
-		$extStaticIp = $oldExtAddrs[0].IPAddress.Trim()
-		if ($EXT_STATIC_IP) {
-			$extStaticIp=$EXT_STATIC_IP
-		} else {
-			Remove-NetIPAddress -IPAddress $extStaticIp -Confirm:$false
-		}
-		New-NetIPAddress -InterfaceIndex $NicExt.InterfaceIndex -AddressFamily IPv4 -IPAddress $extStaticIp -PrefixLength $oldExtAddrs[0].PrefixLength -DefaultGateway $NicExt.DefaultIPGateway.Item(0)
-
 		# disabling IE ESC (Internet Explorer Enhanced Security Configuration)
 		Out-Host "`n==> disabling IE ESC (Internet Explorer Enhanced Security Configuration)"
 		$AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
@@ -131,6 +94,66 @@ switch($Stage) {
 		Out-Host "`n==> add host's hostname to $Env:WinDir\system32\drivers\etc\hosts"
 		echo "" >> $Env:WinDir\system32\drivers\etc\hosts
 		echo "@HOST_IP@ @VIRTHOST@" >> $Env:WinDir\system32\drivers\etc\hosts
+
+		# static ip setup
+		Out-Host "`n==> static ip setup"
+		$INT_STATIC_IP = "@INT_STATIC_IP@"
+		$EXT_STATIC_IP = "@EXT_STATIC_IP@"
+
+		#waiting NICs up ready
+		while ($true) {
+			$NicArray = (Get-NetAdapter | Sort-Object -Property InterfaceIndex)
+			if ($NicArray.count -ge 2) {
+				break
+			} else {
+				Start-sleep -s 2
+			}
+		}
+		Foreach ($nic in $NicArray) {
+			$ip = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $nic.InterfaceIndex)[0].IPAddress.Trim()
+			#assume the NIC that connected to internal network use model=rtl8139, and another one use model=e1000
+			if ($nic.ifDesc -like "*8139*") {
+				$NicInt = $nic
+			} elseif ($nic.ifDesc -like "*1000*") {
+				$NicExt = $nic
+			} else {
+				Out-Host "`n---> info: 3rd NIC with ip($ip), desc: $($nic.ifDesc)"
+			}
+		}
+
+		if ($INT_STATIC_IP) {
+			$oldIntAddrs = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $NicInt.InterfaceIndex)
+			$IntIpConf = (Get-NetIPConfiguration -InterfaceIndex $NicInt.ifIndex)
+
+			Out-Host "`n---> set static IP($INT_STATIC_IP) on int NIC: $($NicInt.ifAlias)"
+			New-NetIPAddress -InterfaceIndex $NicInt.InterfaceIndex -AddressFamily IPv4 `
+				-IPAddress $INT_STATIC_IP -PrefixLength $oldIntAddrs[0].PrefixLength `
+				-DefaultGateway $IntIpConf.IPv4DefaultGateway[0].NextHop
+		}
+
+		# change address of EXT NIC from DHCP to STATIC
+		while ($true) {
+			$oldExtAddrs = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $NicExt.InterfaceIndex)
+			if ($null -ne $oldExtAddrs -and $null -ne $oldExtAddrs[0].IPAddress -and $oldExtAddrs[0].IPAddress -is [string] -and $oldExtAddrs[0].IPAddress.Trim() -notlike "169.254.*") {
+				break
+			} else {
+				Start-sleep -s 5
+				Out-Host "`n---> renew IP on ext NIC: $($NicExt.ifAlias)"
+				ipconfig /release $NicExt.ifAlias
+				ipconfig /renew $NicExt.ifAlias
+			}
+		}
+		$extStaticIp = $oldExtAddrs[0].IPAddress.Trim()
+		$extIpConf = (Get-NetIPConfiguration -InterfaceIndex $NicExt.ifIndex)
+		if ($EXT_STATIC_IP) {
+			$extStaticIp=$EXT_STATIC_IP
+		} else {
+			Remove-NetIPAddress -IPAddress $extStaticIp -Confirm:$false
+		}
+		Out-Host "`n---> set static IP($extStaticIp) on ext NIC: $($NicExt.ifAlias)"
+		New-NetIPAddress -InterfaceIndex $NicExt.InterfaceIndex -AddressFamily IPv4 `
+			-IPAddress $extStaticIp -PrefixLength $oldExtAddrs[0].PrefixLength `
+			-DefaultGateway $extIpConf.IPv4DefaultGateway[0].NextHop
 
 		# disabling DNS registration on the network interface
 		if ($NicInt) {
