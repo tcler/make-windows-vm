@@ -336,10 +336,18 @@ run "kinit Administrator <<< ${AD_DS_SUPERPW}"
 run "klist"
 
 # Join host to an Active Directory (AD), and update the DNS
-run "net ads join --kerberos"
-if [ $? -ne 0 ]; then
+for ((i=0; i<16; i++)); do
+	run "net ads join --kerberos"
+	join_res=$?
+	if [ $join_res -eq 0 ]; then
+		break
+	else
+		sleep 8
+	fi
+done
+if [ $join_res -ne 0 ]; then
 	errecho "AD Integration Failed, cannot join AD Domain by 'net ads join'"
-	exit 1;
+	exit 1
 fi
 
 run "net ads dns gethostbyname $AD_DC_FQDN $HOST_NETBIOS"
