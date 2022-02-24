@@ -144,37 +144,58 @@ Options for windows anwserfile:
 
 Examples:
   #create answer file usb for Active Directory forest Win2012r2:
-  sudo $PROG --hostname win2012-ad --domain ad.test   --product-key W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9 \\
+  sudo $PROG --hostname win2012-adf --domain ad.test   --product-key W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9 \\
 	-p ~Ocgxyz --ad-forest-level Win2012R2 \\
 	--openssh=https://github.com/PowerShell/Win32-OpenSSH/releases/download/V8.6.0.0p1-Beta/OpenSSH-Win64.zip \\
 	./AnswerFileTemplates/addsforest --path ./ansf-usb.image
+  vm create Windows-Server-2012 -n win2012-adf -C /home/download/Win2012r2-Evaluation.iso \\
+	--disk ansf-usb.image,bus=usb \\
+	--net=default,model=rtl8139 --net-macvtap=-,model=e1000 \\
+	--diskbus sata
+  #Note: about 'vm create' see: https://github.com/tcler/kiss-vm-ns
 
   #create answer file usb for Active Directory child domain:
-  sudo $PROG --hostname win2016-child --domain fs.qe \\
+  sudo $PROG --hostname win2016-adc --domain fs.qe \\
 	-p ~Ocgxyz --parent-domain kernel.test --parent-ip \$addr \\
 	--openssh=https://github.com/PowerShell/Win32-OpenSSH/releases/download/V8.6.0.0p1-Beta/OpenSSH-Win64.zip \\
 	./AnswerFileTemplates/addsdomain --path ./ansf-usb.image
+  vm create Windows-Server-2016 -n win2016-adc -C /home/download/Win2016-Evaluation.iso \\
+	--disk ansf-usb.image,bus=usb \\
+	--net=default,model=rtl8139 --net-macvtap=-,model=e1000 \\
+	--diskbus sata
 
   #create answer file usb for Windows NFS/CIFS server, and enable KDC(--enable-kdc):
   sudo $PROG --hostname win2019-nfs --domain cifs-nfs.test \\
 	-p ~Ocgxyz --enable-kdc \\
 	--openssh=https://github.com/PowerShell/Win32-OpenSSH/releases/download/V8.6.0.0p1-Beta/OpenSSH-Win64.zip \\
 	./AnswerFileTemplates/cifs-nfs --path ./ansf-usb.image
+  vm create Windows-Server-2019 -n win2019-nfs -C /home/download/Win2019-Evaluation.iso \\
+	--disk ansf-usb.image,bus=usb \\
+	--net=default,model=rtl8139 --net-macvtap=-,model=e1000 \\
+	--diskbus sata
 
   #create answer file usb for Windows NFS/CIFS server, and install mellanox driver:
-  sudo $PROG --hostname win2019-nfs --domain cifs-nfs.test \\
+  sudo $PROG --hostname win2019-rdma --domain nfs-rdma.test \\
 	-p ~Ocgxyz \\
 	--openssh=https://github.com/PowerShell/Win32-OpenSSH/releases/download/V8.6.0.0p1-Beta/OpenSSH-Win64.zip \\
 	--driver-url=http://www.mellanox.com/downloads/WinOF/MLNX_VPI_WinOF-5_50_54000_All_win2019_x64.exe \\
 	--run-with-reboot='./MLNX_VPI_WinOF-5_50_54000_All_win2019_x64.exe /S /V\"/qb /norestart\"' \\
 	--run-post='ipconfig /all; ibstat' \\
 	./AnswerFileTemplates/cifs-nfs --path ./ansf-usb.image
+  vm create Windows-Server-2019 -n win2019-rdma -C /home/download/Win2019-Evaluation.iso \\
+	--disk ansf-usb.image,bus=usb \\
+	--net=default,model=rtl8139 --net-macvtap=-,model=e1000 \\
+	--diskbus sata
 
   #create answer file usb for Windows NFS/CIFS server, and add dfs target, and enable KDC(--enable-kdc):
   sudo $PROG --hostname win2019-dfs --domain cifs-nfs.test \\
 	-p ~Ocgxyz --dfs-target \$hostname:\$cifsshare --enable-kdc \\
 	--openssh=https://github.com/PowerShell/Win32-OpenSSH/releases/download/V8.6.0.0p1-Beta/OpenSSH-Win64.zip \\
 	./AnswerFileTemplates/cifs-nfs --path ./ansf-usb.image
+  vm create Windows-Server-2019 -n win2019-dfs -C /home/download/Win2019-Evaluation.iso \\
+	--disk ansf-usb.image,bus=usb \\
+	--net=default,model=rtl8139 --net-macvtap=-,model=e1000 \\
+	--diskbus sata
 
 EOF
 }
