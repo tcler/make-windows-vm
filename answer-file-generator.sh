@@ -1,7 +1,12 @@
 #!/bin/bash
 
 LANG=C
-PROG=${0##*/}
+PROG=${0}
+
+test $(id -u) = 0 || {
+	echo "{Warn} ${PROG} need root permission, try: sudo ${PROG} ..." >&2
+	exit 1
+}
 
 create_vdisk() {
 	local path=$1
@@ -73,18 +78,22 @@ cat <<EOF
 Usage: $PROG [OPTION] <AnswerFile Template dir>
 
 Options for windows anwserfile:
+  --hostname    #hostname of Windows Guest VM; e.g: win2019-ad
+  --domain <domain>
+		#*Specify windows domain name; e.g: qetest.org
+
+  -u, --user <user>
+		#Specify user for install and config.
+		  default value: Administrator
+  -p, --password <password>
+		#*Specify user's password for windows. for configure AD/DC:
+		  must use a mix of uppercase letters, lowercase letters, numbers, and symbols
+		  default value: Sesame~0pen
+
   --path <answer file image path>
 		#e.g: --path /path/to/ansf-usb.image
   --wim-index <wim image index>
   --product-key #Prodcut key for windows activation.
-  --hostname    #hostname of Windows Guest VM.
-  --domain <domain>
-		#*Specify windows domain name.
-  -u, --user <user>
-		#Specify user for install and config, default: Administrator
-  -p, --password <password>
-		#*Specify user's password for windows. for configure AD/DC:
-		  must use a mix of uppercase letters, lowercase letters, numbers, and symbols
 
   --ad-forest-level <Default|Win2008|Win2008R2|Win2012|Win2012R2|WinThreshold>
 		#Specify active directory forest level.
@@ -134,10 +143,38 @@ Options for windows anwserfile:
 		#set static ip for the nic that connect to internal libvirt network
 
 Examples:
-  #make answer file usb for Active Directory forest Win2012r2:
-  $PROG --product-key W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9 \
-	--domain ad.test -p ~Ocgxyz --ad-forest-level Win2012R2 \
+  #create answer file usb for Active Directory forest Win2012r2:
+  sudo $PROG --hostname win2012-ad --domain ad.test   --product-key W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9 \\
+	-p ~Ocgxyz --ad-forest-level Win2012R2 \\
+	--openssh=https://github.com/PowerShell/Win32-OpenSSH/releases/download/V8.6.0.0p1-Beta/OpenSSH-Win64.zip \\
 	./AnswerFileTemplates/addsforest --path ./ansf-usb.image
+
+  #create answer file usb for Active Directory child domain:
+  sudo $PROG --hostname win2016-child --domain fs.qe \\
+	-p ~Ocgxyz --parent-domain kernel.test --parent-ip \$addr \\
+	--openssh=https://github.com/PowerShell/Win32-OpenSSH/releases/download/V8.6.0.0p1-Beta/OpenSSH-Win64.zip \\
+	./AnswerFileTemplates/addsdomain --path ./ansf-usb.image
+
+  #create answer file usb for Windows NFS/CIFS server, and enable KDC(--enable-kdc):
+  sudo $PROG --hostname win2019-nfs --domain cifs-nfs.test \\
+	-p ~Ocgxyz --enable-kdc \\
+	--openssh=https://github.com/PowerShell/Win32-OpenSSH/releases/download/V8.6.0.0p1-Beta/OpenSSH-Win64.zip \\
+	./AnswerFileTemplates/cifs-nfs --path ./ansf-usb.image
+
+  #create answer file usb for Windows NFS/CIFS server, and install mellanox driver:
+  sudo $PROG --hostname win2019-nfs --domain cifs-nfs.test \\
+	-p ~Ocgxyz \\
+	--openssh=https://github.com/PowerShell/Win32-OpenSSH/releases/download/V8.6.0.0p1-Beta/OpenSSH-Win64.zip \\
+	--driver-url=http://www.mellanox.com/downloads/WinOF/MLNX_VPI_WinOF-5_50_54000_All_win2019_x64.exe \\
+	--run-with-reboot='./MLNX_VPI_WinOF-5_50_54000_All_win2019_x64.exe /S /V\"/qb /norestart\"' \\
+	--run-post='ipconfig /all; ibstat' \\
+	./AnswerFileTemplates/cifs-nfs --path ./ansf-usb.image
+
+  #create answer file usb for Windows NFS/CIFS server, and add dfs target, and enable KDC(--enable-kdc):
+  sudo $PROG --hostname win2019-dfs --domain cifs-nfs.test \\
+	-p ~Ocgxyz --dfs-target \$hostname:\$cifsshare --enable-kdc \\
+	--openssh=https://github.com/PowerShell/Win32-OpenSSH/releases/download/V8.6.0.0p1-Beta/OpenSSH-Win64.zip \\
+	./AnswerFileTemplates/cifs-nfs --path ./ansf-usb.image
 
 EOF
 }
@@ -194,23 +231,23 @@ done
 
 AD_FOREST_LEVEL=${AD_FOREST_LEVEL:-Default}
 AD_DOMAIN_LEVEL=${AD_DOMAIN_LEVEL:-$AD_FOREST_LEVEL}
-DefaultAnserfileTemplatePath=/usr/share/make-windows-vm/AnswerFilesTemplates/base
-[[ -d "$DefaultAnserfileTemplatePath" ]] || DefaultAnserfileTemplatePath=AnswerFilesTemplates/base
+DefaultAnserfileTemplatePath=/usr/share/make-windows-vm/AnswerFileTemplates/base
+[[ -d "$DefaultAnserfileTemplatePath" ]] || DefaultAnserfileTemplatePath=AnswerFileTemplates/base
 AnserfileTemplatePath=${1%/}
 if [[ -z "$AnserfileTemplatePath" ]]; then
 	AnserfileTemplatePath=$DefaultAnserfileTemplatePath
-	echo "[warn] no answer files template is given, use default($DefaultAnserfileTemplatePath)" >&2
+	echo "{warn} no answer files template is given, use default($DefaultAnserfileTemplatePath)" >&2
 fi
 
-if [[ -d "$AnserfileTemplatePath" ]]; then
-	echo "[error] template dir($AnserfileTemplatePath) not found" >&2
+if [[ ! -d "$AnserfileTemplatePath" ]]; then
+	echo "{ERROR} template dir($AnserfileTemplatePath) not found" >&2
 	exit 1
 fi
 
 if egrep -q "@PARENT_(DOMAIN|IP)@" -r "$AnserfileTemplatePath"; then
 	[[ -z "$PARENT_DOMAIN" || -z "$PARENT_IP" ]] && {
-		echo "[error] Missing parent-domain or parent-ip for template(${AnserfileTemplatePath##*/})" >&2
-		Usage
+		echo "{ERROR} Missing parent-domain or parent-ip for template(${AnserfileTemplatePath##*/})" >&2
+		Usage >&2
 		exit 1
 	}
 fi
@@ -242,7 +279,7 @@ curl_download() {
 		curlopts+=' --continue-at -'
 	fi
 
-	echo "{INFO} run: curl -o $filename $curl $curlopts $curlOpt $@"
+	echo "{INFO} run: curl -o $filename ${url} $curlopts $curlOpt $@"
 	curl -o $filename $url $curlopts $curlOpt "$@"
 	rc=$?
 	if [[ $rc != 0 && -s $filename ]]; then
@@ -285,8 +322,13 @@ done)
 WIM_IMAGE_INDEX=${WIM_IMAGE_INDEX:-4}
 [[ -n is_win10 ]] && WIM_IMAGE_INDEX=1
 GUEST_HOSTNAME=${GUEST_HOSTNAME}
-[[ ${#GUEST_HOSTNAME} -gt 15 || -z "$GUEST_HOSTNAME" ]] && {
-	echo -e "{ERROR} length of hostname($GUEST_HOSTNAME) should < 16 and > 0" >&2
+[[ -z "$GUEST_HOSTNAME" ]] && {
+	echo -e "{ERROR} you are missing --hostname=<vm-hostname> option, it is necessary" >&2
+	Usage >&2
+	exit 1
+}
+[[ ${#GUEST_HOSTNAME} -gt 15 ]] && {
+	echo -e "{ERROR} length of hostname($GUEST_HOSTNAME) should < 16" >&2
 	exit 1
 }
 DOMAIN=${DOMAIN:-win.com}
