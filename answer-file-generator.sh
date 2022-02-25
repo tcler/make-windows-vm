@@ -341,7 +341,7 @@ done)
 # Windows Preparation
 # =======================================================================
 WIM_IMAGE_INDEX=${WIM_IMAGE_INDEX:-4}
-[[ -n is_win10 ]] && WIM_IMAGE_INDEX=1
+[[ "$VM_OS_VARIANT" = win10 ]] && WIM_IMAGE_INDEX=1
 GUEST_HOSTNAME=${GUEST_HOSTNAME}
 [[ -z "$GUEST_HOSTNAME" ]] && {
 	echo -e "{ERROR} you are missing --hostname=<vm-hostname> option, it is necessary" >&2
