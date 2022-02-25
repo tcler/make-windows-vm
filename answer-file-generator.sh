@@ -8,6 +8,9 @@ test $(id -u) = 0 || {
 	exit 1
 }
 
+SUDOUSER=${SUDO_USER:-$(whoami)}
+eval SUDOUSERHOME=~$SUDOUSER
+
 create_vdisk() {
 	local path=$1
 	local size=$2
@@ -406,6 +409,7 @@ process_ansf() {
 	unix2dos $destdir/* >/dev/null
 
 	[[ -n "$OpenSSHUrl" ]] && curl_download_x $destdir/OpenSSH.zip $OpenSSHUrl
+	cp $SUDOUSERHOME/.ssh/id_*.pub $destdir/. 2>/dev/null
 
 	autorundir=$destdir/$ANSF_AUTORUN_DIR
 	if [[ -n "$DL_URLS" ]]; then

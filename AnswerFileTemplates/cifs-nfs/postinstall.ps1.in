@@ -35,6 +35,9 @@ Function Install-Sshd() {
 	net start sshd
 	Set-Service sshd -StartupType Automatic
 	Set-Service ssh-agent -StartupType Automatic
+	$sshConfDir="$HOME\.ssh"
+	New-Item "$sshConfDir" -ItemType Directory -ea 0
+	Get-Content -Path C:\id_*.pub > "$sshConfDir\authorized_keys"
 }
 
 Out-Host "==> Start postinstall ..."
@@ -328,6 +331,7 @@ switch($Stage) {
 $OpenSSHPath = "@ANSF_DRIVE_LETTER@\OpenSSH.zip"
 if (Test-Path -Path $OpenSSHPath) {
 	Out-Host "`n==> install and start ssh server"
+	Copy-Item -Path @ANSF_DRIVE_LETTER@\id_*.pub -Destination 'C:\'
 	Install-Sshd -Path $OpenSSHPath
 }
 
