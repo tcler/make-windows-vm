@@ -39,6 +39,8 @@ Function Install-Sshd() {
 	$sshConfDir="$HOME\.ssh"
 	New-Item "$sshConfDir" -ItemType Directory -ea 0
 	Get-Content -Path C:\id_*.pub > "$sshConfDir\authorized_keys"
+	New-Item "C:\Program Files\OpenSSH-Win64\ssh" -ItemType Directory -ea 0
+	Get-Content -Path C:\id_*.pub > "C:\Program Files\OpenSSH-Win64\ssh\administrators_authorized_keys"
 }
 
 Out-Host "==> Start postinstall ..."
