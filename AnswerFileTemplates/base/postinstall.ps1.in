@@ -24,7 +24,7 @@ Function Unzip-File() {
 	$shellApp.NameSpace($TargetFolder).CopyHere($files)
 }
 
-Function Install-Sshd() {
+Function Install-sshd() {
 	param([string]$Path)
 	Copy-Item -Path $Path -Destination 'C:\OpenSSH.zip'
 	Unzip-File -ZipFile 'C:\OpenSSH.zip' -TargetFolder 'C:\Program Files'
@@ -37,6 +37,7 @@ Function Install-Sshd() {
 	net start sshd
 	Set-Service sshd -StartupType Automatic
 	Set-Service ssh-agent -StartupType Automatic
+	New-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name DefaultShell -Value "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -PropertyType String -Force
 
 	#create authorized_keys file
 	$sshConfDir="$HOME\.ssh"
@@ -192,7 +193,7 @@ $OpenSSHPath = "@ANSF_DRIVE_LETTER@\OpenSSH.zip"
 if (Test-Path -Path $OpenSSHPath) {
 	Out-Host "`n==> install and start ssh server"
 	Copy-Item -Path @ANSF_DRIVE_LETTER@\id_*.pub -Destination 'C:\'
-	Install-Sshd -Path $OpenSSHPath
+	Install-sshd -Path $OpenSSHPath
 }
 
 # check if there is autorun post script in anwser file
