@@ -3,6 +3,9 @@
 LANG=C
 PROG=${0##*/}
 
+SUDOUSER=${SUDO_USER:-$(whoami)}
+eval SUDOUSERHOME=~$SUDOUSER
+
 is_bridge() {
 	local ifname=$1
 	[[ -z "$ifname" ]] && return 1
@@ -689,7 +692,7 @@ fi
 # =======================================================================
 # To check whether the installation is done
 # =======================================================================
-port_available() { nc $1 $2 </dev/null &>/dev/null; }
+port_available() { nc $(grep -q -- '-z\>' < <(nc -h 2>&1) && echo -z) $1 $2  </dev/null &>/dev/null; }
 logcat() {
 	local file=$1 ret=0
 	local ansf=
@@ -702,12 +705,11 @@ logcat() {
 	return $ret
 }
 echo -e "\n{INFO} waiting install done ...\n\tvncviewer $VIRTHOST:$VNCPORT"
-#ipaddr=$(virsh domifaddr "$VM_NAME" | awk '$3=="ipv4" {print gensub("/.*","",1,$4)}')
-#until port_available ${ipaddr} 22; do sleep 1; done   #nc check ssh port 22 ready
 timeouts=$((VM_TIMEOUT*60))
 timestep=10
 for ((i=0; i<=timeouts; i+=timestep)) ; do
-	logcat $INSTALL_COMPLETE_FILE &>/dev/null && break
+	read vmaddr _ < <(virsh --quiet domifaddr "$VM_NAME" | awk '{print gensub("/.*","",1,$4)}')
+	port_available ${vmaddr} 22 && break
 	sleep $timestep
 done
 ((i > $timeouts)) && { echo -e "\n{WARN} Install timeout(${VM_TIMEOUT}m)"; }
@@ -718,11 +720,14 @@ done
 
 # Get install and ipconfig log
 WIN_INSTALL_LOG=/tmp/$VM_NAME.install.log
-logcat $POST_INSTALL_LOGF |
-	iconv -f UTF-16LE -t UTF-8 - >$WIN_INSTALL_LOG
 WIN_IPCONFIG_LOG=/tmp/$VM_NAME.ipconfig.log
-logcat $IPCONFIG_LOGF >$WIN_IPCONFIG_LOG
+rm -f $WIN_INSTALL_LOG $WIN_IPCONFIG_LOG
+sudo -i -u $SUDOUSER bash <<EOF
+scp -o StrictHostKeyChecking=no $ADMINUSER@$vmaddr:C:/$POST_INSTALL_LOGF $WIN_INSTALL_LOG
+scp -o StrictHostKeyChecking=no $ADMINUSER@$vmaddr:C:/$IPCONFIG_LOGF $WIN_IPCONFIG_LOG
+iconv -f UTF-16LE -t UTF-8 $WIN_INSTALL_LOG -o $WIN_INSTALL_LOG
 dos2unix $WIN_INSTALL_LOG $WIN_IPCONFIG_LOG
+EOF
 
 # Eject CDs
 echo -e "\n{INFO} eject media ..."
@@ -766,14 +771,6 @@ if [[ -z "$VM_INT_IP" || -z "$VM_EXT_IP" ]]; then
 	echo "[cat $WIN_INSTALL_LOG]:"
 	cat $WIN_INSTALL_LOG
 	exit 1
-fi
-
-# Test SSH connection
-if [[ -n "$OpenSSHUrl" ]]; then
-	echo -e "\n{INFO} run follow command to test SSH connection"
-	echo "VM_INT_IP=$VM_INT_IP ADMINUSER=$ADMINUSER ADMINPASSWORD=$ADMINPASSWORD ./utils/test-ssh.sh"
-	echo "VM_INT_IP=$VM_INT_IP ADMINUSER=$ADMINUSER ADMINPASSWORD=$ADMINPASSWORD ./utils/test-ssh.sh"|bash|
-		sed -r -e 's|\x1b.[0-9]+;1H||' -e '/administrator@/s/ *(\x1b.2J)?(\x1b.[0-9]+;[0-9]+H){1,2}/ /' -e 's/ *\x1b[^ ]*.*$//'
 fi
 
 if [[ "$CHECK_AD" = yes ]]; then
