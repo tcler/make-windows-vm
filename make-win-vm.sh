@@ -6,6 +6,57 @@ PROG=${0##*/}
 SUDOUSER=${SUDO_USER:-$(whoami)}
 eval SUDOUSERHOME=~$SUDOUSER
 
+getSafeCommandLine() {
+	#if only one parameter, treat it as a piece of script
+	[[ $# = 1 ]] && { echo "$1"; return; }
+
+	local shpattern='^[][0-9a-zA-Z~@%^_+=:,./-]+$'
+
+	for at; do
+		if [[ -z "$at" ]]; then
+			echo -n "'' "
+		elif [[ "$at" =~ $shpattern ]]; then
+			echo -n "$at "
+		elif [[ "$at" =~ [^[:print:]]+ ]]; then
+			echo -n "$(builtin printf %q "$at") "
+		else
+			echo -n "$at" | sed -r -e ':a;$!{N;ba};' \
+				-e "s/'+/'\"&\"'/g" -e "s/^/'/" -e "s/$/' /" \
+				-e "s/^''//" -e "s/'' $/ /"
+		fi
+	done
+	echo
+}
+
+run() {
+	local _nohup= _nohuplogf=
+
+	[[ $# -eq 0 ]] && return 0
+	for ((i=0; i<2; i++)); do
+		case $1 in
+		-nohup*|nohup*)
+			_nohup=\ nohup
+			[[ $1 = *=* ]] && _nohuplogf=${1#*=}
+			_nohuplogf=${_nohuplogf:-./nohup.log}
+			shift
+			;;
+		-debug*)
+			DEBUG=yes
+			shift
+			;;
+		esac
+	done
+
+	local _cmdline=$(getSafeCommandLine "$@")
+	if [[ -n "$_nohup" ]]; then
+		[[ "$DEBUG" = yes ]] && echo "[sys]" nohup "$_cmdline" "&>${_nohuplogf} &" | GREP_COLORS='ms=01;30;47' grep --color .
+		nohup "$@" &>${_nohuplogf} &
+	else
+		[[ "$DEBUG" = yes ]] && echo "[sys]" "$_cmdline" | GREP_COLORS='ms=01;30;47' grep --color .
+		"$@"
+	fi
+}
+
 is_bridge() {
 	local ifname=$1
 	[[ -z "$ifname" ]] && return 1
@@ -693,17 +744,7 @@ fi
 # To check whether the installation is done
 # =======================================================================
 port_available() { nc $(grep -q -- '-z\>' < <(nc -h 2>&1) && echo -z) $1 $2  </dev/null &>/dev/null; }
-logcat() {
-	local file=$1 ret=0
-	local ansf=
-	ansf=$ANSF_USB
-	local tmp_mp=$(mktemp -d)
-	MNT_OPT=-oro mount_vdisk $ansf $tmp_mp
-	cat $tmp_mp/$file 2>/dev/null
-	ret=$?
-	umount $tmp_mp; \rm -rf $tmp_mp
-	return $ret
-}
+
 echo -e "\n{INFO} waiting install done ...\n\tvncviewer $VIRTHOST:$VNCPORT"
 timeouts=$((VM_TIMEOUT*60))
 timestep=10
@@ -765,17 +806,13 @@ EOF
 
 if [[ -z "$VM_INT_IP" || -z "$VM_EXT_IP" ]]; then
 	echo -e "\n{ERROR} VM_INT_IP($VM_INT_IP) or VM_EXT_IP($VM_EXT_IP) is nil"
-
-	echo "[cat $WIN_IPCONFIG_LOG]:"
-	cat $WIN_IPCONFIG_LOG
-	echo "[cat $WIN_INSTALL_LOG]:"
-	cat $WIN_INSTALL_LOG
+	run -debug cat $WIN_IPCONFIG_LOG
+	run -debug cat $WIN_INSTALL_LOG
 	exit 1
 fi
 
 if [[ "$CHECK_AD" = yes ]]; then
 	echo -e "\n{INFO} run follow command to test AD connection"
 	ldapurl=ldap://${VM_INT_IP}
-	echo "./utils/test-cert.sh $VM_NAME $FQDN $DOMAIN $ADMINUSER:$ADMINPASSWORD $ldapurl"
-	echo "./utils/test-cert.sh $VM_NAME $FQDN $DOMAIN $ADMINUSER:$ADMINPASSWORD $ldapurl"|bash
+	run -debug ./utils/test-cert.sh $VM_NAME $FQDN $DOMAIN $ADMINUSER:$ADMINPASSWORD $ldapurl
 fi
