@@ -455,3 +455,4 @@ mount_vdisk $ANSF_IMG_PATH $media_mp
 process_ansf $media_mp $AnserfileTemplatePath/*
 umount $media_mp
 \rm -rf $media_mp
+losetup -a

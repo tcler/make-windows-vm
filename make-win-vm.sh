@@ -682,8 +682,9 @@ create_vdisk $ANSF_USB ${usbSize} vfat
 mount_vdisk $ANSF_USB $media_mp
 process_ansf $media_mp "$@"
 umount $media_mp
-DiskOption=bus=usb,format=raw,removable=on
 \rm -rf $media_mp
+losetup -a
+DiskOption=bus=usb,format=raw,removable=on
 
 echo -e "\n{INFO} copy win iso file to ${VM_PATH}/. # ..."
 \rm -f $VM_IMAGE
