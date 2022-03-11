@@ -3,81 +3,90 @@
 LANG=C
 PROG=${0}
 
-test $(id -u) = 0 || {
-	echo "{Warn} ${PROG} need root permission, try: sudo ${PROG} ..." >&2
-	exit 1
-}
-
 SUDOUSER=${SUDO_USER:-$(whoami)}
 eval SUDOUSERHOME=~$SUDOUSER
 
-create_vdisk() {
-	local path=$1
-	local size=$2
-	local fstype=$3
+dd_range() {
+	local if=$1
+	local of=$2
+	local SKIP=${3:-0}
+	local SIZE=$4
+	local BS=$((8 * 1024))
 
-	dd if=/dev/null of=$path bs=1${size//[0-9]/} seek=${size//[^0-9]/}
+	[[ -z "$of" ]] && return 1
+
+	Q=$((SKIP/BS))  #quotient
+	R=$((SKIP%BS))  #residue
+	dd if=$if ibs=$BS skip=$Q count=1 | tail -c $((BS-R)) >$of
+
+	{
+	if [[ -z "$SIZE" ]]; then
+		dd if=$if bs=$BS skip=$((Q+1))
+	else
+		Q2=$((SIZE/BS))  #quotient
+		R2=$((SIZE%BS))  #residue
+		((Q2>0)) && dd if=$if bs=$BS skip=$((Q+1)) count=$Q2
+		((R2>0)) && dd if=$if bs=$BS skip=$((Q+1+Q2)) count=1 | head -c $R2
+	fi
+	} >>$of
+}
+
+create_vdiskn() {
+	local path=$1
+	local dsize=$2
+	local fstype=$3
+	local imghead=img-head-$$
+	local imgtail=img-tail-$$
+	local fn=${FUNCNAME[0]}
+
+	echo -e "\n[$fn:info] creating disk and partition"
+	dd if=/dev/null of=$path bs=1${dsize//[0-9]/} seek=${dsize//[^0-9]/}
 	printf "o\nn\np\n1\n\n\nw\n" | fdisk "$path"
 	partprobe "$path"
 
-	udisksctl loop-setup -f $path
-	local dev=$(losetup -j $path|awk -F: '{print $1}')
+	read pstart psize < <( LANG=C parted -s $path unit B print | sed 's/B//g' |
+		awk -v P=1 '/^Number/{start=1;next}; start {if ($1==P) {print $2, $4}}' )
+	echo -e "\n[$fn:info] split disk head and partition($pstart:$psize)"
+	dd if=$path of=$imghead bs=${pstart} count=1
+	dd_range $path $imgtail $((pstart)) ${psize}
+
+	echo -e "\n[$fn:info] making fs($fstype)"
+	mkfs.$fstype $MKFS_OPT "$imgtail"
+
+	echo -e "\n[$fn:info] concat image-head and partition"
+	cat $imghead $imgtail >$path
+	rm -vf $imghead $imgtail
+}
+
+mount_vdisk2() {
+	local path=$1
+	local partN=${2:-1}
+	local dev= mntdev= mntopt= mntinfo=
+
+	read dev _ < <(losetup -j $path|awk -F'[: ]+' '{print $1, $2}')
+	if [[ -z "$dev" ]]; then
+		udisksctl loop-setup -f $path >&2
+		read dev _ < <(losetup -j $path|awk -F'[: ]+' '{print $1, $2}')
+	fi
 	[[ -z "$dev" ]] && {
 		echo "{err} 'losetup -j $path' got fail, I don't know why" >&2
 		return 1
 	}
-	while ! ls -l ${dev}p1 2>/dev/null; do sleep 1; done
-	ls -l ${dev}
-	mkfs.$fstype $MKFS_OPT "${dev}p1"
-	udisksctl loop-delete -b $dev
-}
 
-mount_vdisk() {
-	local path=$1
-	local mp=$2
-	local partN=${3:-1}
-	local offset=
+	mntdev=${dev}p${partN}
+	{ ls -l ${mntdev}; } >&2
 
-	if fdisk -l -o Start "$path" &>/dev/null; then
-		read offset sizelimit < <(fdisk -l -o Start,Sectors "$path" |
-			awk -v N=$partN '
-				/^Units:/ { unit=$(NF-1); offset=0; }
-				/^Start/ {
-					for(i=0;i<N;i++)
-						if(getline == 0) { $0=""; break; }
-					offset=$1*unit;
-					sizelimit=$2*unit;
-				}
-				END { print offset, sizelimit; }'
-		)
+	mntinfo=$(mount | awk -v d=$mntdev '$1 == d')
+	loinfo=$(losetup -j $path)
+	if [[ -z "$mntinfo" ]]; then
+		mntopt=$([[ -n "$MNT_OPT" ]] && echo --options=$MNT_OPT)
+		udisksctl mount -b $mntdev $mntopt >&2
 	else
-		read offset sizelimit < <(fdisk -l "$path" |
-			awk -v N=$partN '
-				/^Units/ { unit=$(NF-1); offset=0; }
-				$3 == "Start" {
-					for(i=0;i<N;i++)
-						if(getline == 0) { $0=""; break; }
-					offset=$2*unit; sizelimit=($3-$2)*unit;
-					if ($2 == "*") {
-						offset=$3*unit; end=($4-$3)*unit;
-					}
-				}
-				END { print offset, sizelimit; }'
-		)
+		echo -e "{warn} '$path' has been already mounted:\n  $mntinfo" >&2
 	fi
-	echo "offset: $offset, sizelimit: $sizelimit"
 
-	[[ -d "$mp" ]] || {
-		echo "{warn} mount_vdisk: dir '$mp' not exist"
-		return 1
-	}
-
-	if [[ "$offset" -ne 0 || "$partN" -eq 1 ]]; then
-		mount $MNT_OPT -oloop,offset=$offset,sizelimit=$sizelimit $path $mp
-	else
-		echo "{warn} mount_vdisk: there's not part($partN) on disk $path"
-		return 1
-	fi
+	echo -e "  $loinfo" >&2
+	mount | awk -v d=$mntdev '$1 == d {print $3}'
 }
 
 # ==============================================================================
@@ -154,7 +163,7 @@ Options for windows anwserfile:
 
 Examples:
   #create answer file usb for Active Directory forest Win2012r2:
-  sudo $PROG --hostname win2012-adf --domain ad.test   --product-key W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9 \\
+  $PROG --hostname win2012-adf --domain ad.test   --product-key W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9 \\
 	-p ~Ocgxyz --ad-forest-level Win2012R2 \\
 	--openssh=https://github.com/PowerShell/Win32-OpenSSH/releases/download/V8.6.0.0p1-Beta/OpenSSH-Win64.zip \\
 	./AnswerFileTemplates/addsforest --path ./ansf-usb.image
@@ -165,7 +174,7 @@ Examples:
   #Note: about 'vm create' see: https://github.com/tcler/kiss-vm-ns
 
   #create answer file usb for Active Directory child domain:
-  sudo $PROG --hostname win2016-adc --domain fs.qe \\
+  $PROG --hostname win2016-adc --domain fs.qe \\
 	-p ~Ocgxyz --parent-domain kernel.test --parent-ip \$addr \\
 	--openssh=https://github.com/PowerShell/Win32-OpenSSH/releases/download/V8.6.0.0p1-Beta/OpenSSH-Win64.zip \\
 	./AnswerFileTemplates/addsdomain --path ./ansf-usb.image
@@ -175,7 +184,7 @@ Examples:
 	--diskbus sata
 
   #create answer file usb for Windows NFS/CIFS server, and enable KDC(--enable-kdc):
-  sudo $PROG --hostname win2019-nfs --domain cifs-nfs.test \\
+  $PROG --hostname win2019-nfs --domain cifs-nfs.test \\
 	-p ~Ocgxyz --enable-kdc \\
 	--openssh=https://github.com/PowerShell/Win32-OpenSSH/releases/download/V8.6.0.0p1-Beta/OpenSSH-Win64.zip \\
 	./AnswerFileTemplates/cifs-nfs --path ./ansf-usb.image
@@ -185,7 +194,7 @@ Examples:
 	--diskbus sata
 
   #create answer file usb for Windows NFS/CIFS server, and install mellanox driver:
-  sudo $PROG --hostname win2019-rdma --domain nfs-rdma.test \\
+  $PROG --hostname win2019-rdma --domain nfs-rdma.test \\
 	-p ~Ocgxyz \\
 	--openssh=https://github.com/PowerShell/Win32-OpenSSH/releases/download/V8.6.0.0p1-Beta/OpenSSH-Win64.zip \\
 	--driver-url=http://www.mellanox.com/downloads/WinOF/MLNX_VPI_WinOF-5_50_54000_All_win2019_x64.exe \\
@@ -198,7 +207,7 @@ Examples:
 	--diskbus sata
 
   #create answer file usb for Windows NFS/CIFS server, and add dfs target, and enable KDC(--enable-kdc):
-  sudo $PROG --hostname win2019-dfs --domain cifs-nfs.test \\
+  $PROG --hostname win2019-dfs --domain cifs-nfs.test \\
 	-p ~Ocgxyz --dfs-target \$hostname:\$cifsshare --enable-kdc \\
 	--openssh=https://github.com/PowerShell/Win32-OpenSSH/releases/download/V8.6.0.0p1-Beta/OpenSSH-Win64.zip \\
 	./AnswerFileTemplates/cifs-nfs --path ./ansf-usb.image
@@ -446,13 +455,15 @@ eval "ls $AnserfileTemplatePath/*" || {
 	exit 1
 }
 \rm -f $ANSF_IMG_PATH #remove old/exist media file
-media_mp=$(mktemp -d)
+
 ANSF_DRIVE_LETTER="D:"
 ANSF_AUTORUN_DIR=tools-drivers
 usbSize=1024M
-create_vdisk $ANSF_IMG_PATH ${usbSize} vfat
-mount_vdisk $ANSF_IMG_PATH $media_mp
+create_vdiskn $ANSF_IMG_PATH ${usbSize} vfat
+media_mp=$(mount_vdisk2 $ANSF_IMG_PATH)
 process_ansf $media_mp $AnserfileTemplatePath/*
-umount $media_mp
-\rm -rf $media_mp
-losetup -a
+
+lodev=$(mount | awk -v mp=$media_mp '$3 == mp {print $1}')
+mntdev=$(losetup -j $ANSF_IMG_PATH|awk -F'[: ]+' '{print $1}')
+udisksctl unmount -b $lodev
+udisksctl loop-delete -b $mntdev
