@@ -59,6 +59,7 @@ create_vdiskn() {
 }
 
 mount_vdisk2() {
+	local fn=${FUNCNAME[0]}
 	local path=$1
 	local partN=${2:-1}
 	local dev= mntdev= mntopt= mntinfo=
@@ -69,7 +70,7 @@ mount_vdisk2() {
 		read dev _ < <(losetup -j $path|awk -F'[: ]+' '{print $1, $2}')
 	fi
 	[[ -z "$dev" ]] && {
-		echo "{err} 'losetup -j $path' got fail, I don't know why" >&2
+		echo "{$fn:err} 'losetup -j $path' got fail, I don't know why" >&2
 		return 1
 	}
 
@@ -82,11 +83,27 @@ mount_vdisk2() {
 		mntopt=$([[ -n "$MNT_OPT" ]] && echo --options=$MNT_OPT)
 		udisksctl mount -b $mntdev $mntopt >&2
 	else
-		echo -e "{warn} '$path' has been already mounted:\n  $mntinfo" >&2
+		echo -e "{$fn:warn} '$path' has been already mounted:\n  $mntinfo" >&2
 	fi
 
 	echo -e "  $loinfo" >&2
 	mount | awk -v d=$mntdev '$1 == d {print $3}'
+}
+umount_vdisk2() {
+	local fn=${FUNCNAME[0]}
+
+	local mp=$1
+	local mntinfo=$(mount | awk -v mp=$mp '$3 == mp {print $0}')
+	if ! grep udisks2 <<<"$mntinfo"; then
+		echo "{$fn:warn} $mp is not mounted by udisks2"
+		return 1
+	fi
+
+	local mntdev=${mntinfo%% *}
+	local lodev=${mntdev%p*}
+
+	udisksctl unmount -b $mntdev
+	udisksctl loop-delete -b $lodev
 }
 
 # ==============================================================================
@@ -462,8 +479,4 @@ usbSize=1024M
 create_vdiskn $ANSF_IMG_PATH ${usbSize} vfat
 media_mp=$(mount_vdisk2 $ANSF_IMG_PATH)
 process_ansf $media_mp $AnserfileTemplatePath/*
-
-lodev=$(mount | awk -v mp=$media_mp '$3 == mp {print $1}')
-mntdev=$(losetup -j $ANSF_IMG_PATH|awk -F'[: ]+' '{print $1}')
-udisksctl unmount -b $lodev
-udisksctl loop-delete -b $mntdev
+umount_vdisk2 $media_mp
