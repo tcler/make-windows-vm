@@ -6,82 +6,6 @@ PROG=${0}
 SUDOUSER=${SUDO_USER:-$(whoami)}
 eval SUDOUSERHOME=~$SUDOUSER
 
-create_vdiskn() {
-	local path=$1
-	local dsize=$2
-	local fstype=$3
-	local imghead=img-head-$$
-	local imgtail=img-tail-$$
-	local fn=${FUNCNAME[0]}
-
-	echo -e "\n[$fn:info] creating disk and partition"
-	dd if=/dev/null of=$path bs=1${dsize//[0-9]/} seek=${dsize//[^0-9]/}
-	printf "o\nn\np\n1\n\n\nw\n" | fdisk "$path"
-	partprobe "$path"
-
-	read pstart psize < <( LANG=C parted -s $path unit B print | sed 's/B//g' |
-		awk -v P=1 '/^Number/{start=1;next}; start {if ($1==P) {print $2, $4}}' )
-	echo -e "\n[$fn:info] split disk head and partition($pstart:$psize)"
-	dd if=$path of=$imghead bs=${pstart} count=1
-	truncate --size=${psize} $imgtail
-
-	echo -e "\n[$fn:info] making fs($fstype)"
-	mkfs.$fstype $MKFS_OPT "$imgtail"
-
-	echo -e "\n[$fn:info] concat image-head and partition"
-	cat $imghead $imgtail >$path
-	rm -vf $imghead $imgtail
-}
-
-mount_vdisk2() {
-	local fn=${FUNCNAME[0]}
-	local path=$1
-	local partN=${2:-1}
-	local dev= mntdev= mntopt= mntinfo=
-
-	read dev _ < <(losetup -j $path|awk -F'[: ]+' '{print $1, $2}')
-	if [[ -z "$dev" ]]; then
-		udisksctl loop-setup -f $path >&2
-		read dev _ < <(losetup -j $path|awk -F'[: ]+' '{print $1, $2}')
-	fi
-	[[ -z "$dev" ]] && {
-		echo "{$fn:err} 'losetup -j $path' got fail, I don't know why" >&2
-		return 1
-	}
-
-	mntdev=${dev}p${partN}
-	ls ${dev}p* &>/dev/null || mntdev=$dev
-	{ ls -l ${mntdev}; } >&2
-
-	mntinfo=$(mount | awk -v d=$mntdev '$1 == d')
-	loinfo=$(losetup -j $path)
-	if [[ -z "$mntinfo" ]]; then
-		mntopt=$([[ -n "$MNT_OPT" ]] && echo --options=$MNT_OPT)
-		udisksctl mount -b $mntdev $mntopt >&2
-	else
-		echo -e "{$fn:warn} '$path' has been already mounted:\n  $mntinfo" >&2
-	fi
-
-	echo -e "  $loinfo" >&2
-	mount | awk -v d=$mntdev '$1 == d {print $3}'
-}
-umount_vdisk2() {
-	local fn=${FUNCNAME[0]}
-
-	local mp=$1
-	local mntinfo=$(mount | awk -v mp=$mp '$3 == mp {print $0}')
-	if ! grep udisks2 <<<"$mntinfo"; then
-		echo "{$fn:warn} $mp is not mounted by udisks2"
-		return 1
-	fi
-
-	local mntdev=${mntinfo%% *}
-	local lodev=${mntdev%p*}
-
-	udisksctl unmount -b $mntdev
-	udisksctl loop-delete -b $lodev
-}
-
 # ==============================================================================
 # Parameter Processing
 # ==============================================================================
@@ -452,7 +376,7 @@ eval "ls $AnserfileTemplatePath/*" || {
 ANSF_DRIVE_LETTER="D:"
 ANSF_AUTORUN_DIR=tools-drivers
 usbSize=1024M
-create_vdiskn $ANSF_IMG_PATH ${usbSize} vfat
-media_mp=$(mount_vdisk2 $ANSF_IMG_PATH)
-process_ansf $media_mp $AnserfileTemplatePath/*
-umount_vdisk2 $media_mp
+media_dir=$(mktemp -d)
+trap "rm -fr $media_dir" EXIT
+process_ansf $media_dir $AnserfileTemplatePath/*
+virt-make-fs -s $usbSize -t vfat $media_dir $ANSF_IMG_PATH --partition
