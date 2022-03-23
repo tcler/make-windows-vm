@@ -65,6 +65,12 @@ run() {
 	return $_rc
 }
 
+is_bridge() {
+        local ifname=$1
+        [[ -z "$ifname" ]] && return 1
+        ip -d a s $ifname | grep -qw bridge
+}
+
 get_default_if() {
 	local notbr=$1  #indicate get real NIC not bridge
 	local _iface= iface=
