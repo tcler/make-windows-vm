@@ -84,7 +84,7 @@ Examples:
 	-p ~Ocgxyz --ad-forest-level Win2012R2 \\
 	--openssh=https://github.com/PowerShell/Win32-OpenSSH/releases/download/V8.6.0.0p1-Beta/OpenSSH-Win64.zip \\
 	./AnswerFileTemplates/addsforest --path ./ansf-usb.image
-  vm create Windows-Server-2012 -n win2012-adf -C /home/download/Win2012r2-Evaluation.iso \\
+  vm create Windows-Server-2012 -n win2012-adf -C ~/Downloads//Win2012r2-Evaluation.iso \\
 	--disk ansf-usb.image,bus=usb \\
 	--net=default,model=rtl8139 --net-macvtap=-,model=e1000 \\
 	--diskbus sata
@@ -95,7 +95,7 @@ Examples:
 	-p ~Ocgxyz --parent-domain kernel.test --parent-ip \$addr \\
 	--openssh=https://github.com/PowerShell/Win32-OpenSSH/releases/download/V8.6.0.0p1-Beta/OpenSSH-Win64.zip \\
 	./AnswerFileTemplates/addsdomain --path ./ansf-usb.image
-  vm create Windows-Server-2016 -n win2016-adc -C /home/download/Win2016-Evaluation.iso \\
+  vm create Windows-Server-2016 -n win2016-adc -C ~/Downloads//Win2016-Evaluation.iso \\
 	--disk ansf-usb.image,bus=usb \\
 	--net=default,model=rtl8139 --net-macvtap=-,model=e1000 \\
 	--diskbus sata
@@ -105,7 +105,7 @@ Examples:
 	-p ~Ocgxyz --enable-kdc \\
 	--openssh=https://github.com/PowerShell/Win32-OpenSSH/releases/download/V8.6.0.0p1-Beta/OpenSSH-Win64.zip \\
 	./AnswerFileTemplates/cifs-nfs --path ./ansf-usb.image
-  vm create Windows-Server-2019 -n win2019-nfs -C /home/download/Win2019-Evaluation.iso \\
+  vm create Windows-Server-2019 -n win2019-nfs -C ~/Downloads//Win2019-Evaluation.iso \\
 	--disk ansf-usb.image,bus=usb \\
 	--net=default,model=rtl8139 --net-macvtap=-,model=e1000 \\
 	--diskbus sata
@@ -118,7 +118,7 @@ Examples:
 	--run-with-reboot='./MLNX_VPI_WinOF-5_50_54000_All_win2019_x64.exe /S /V\"/qb /norestart\"' \\
 	--run-post='ipconfig /all; ibstat' \\
 	./AnswerFileTemplates/cifs-nfs --path ./ansf-usb.image
-  vm create Windows-Server-2019 -n win2019-rdma -C /home/download/Win2019-Evaluation.iso \\
+  vm create Windows-Server-2019 -n win2019-rdma -C ~/Downloads//Win2019-Evaluation.iso \\
 	--disk ansf-usb.image,bus=usb \\
 	--net=default,model=rtl8139 --net-macvtap=-,model=e1000 \\
 	--diskbus sata
@@ -128,7 +128,7 @@ Examples:
 	-p ~Ocgxyz --dfs-target \$hostname:\$cifsshare --enable-kdc \\
 	--openssh=https://github.com/PowerShell/Win32-OpenSSH/releases/download/V8.6.0.0p1-Beta/OpenSSH-Win64.zip \\
 	./AnswerFileTemplates/cifs-nfs --path ./ansf-usb.image
-  vm create Windows-Server-2019 -n win2019-dfs -C /home/download/Win2019-Evaluation.iso \\
+  vm create Windows-Server-2019 -n win2019-dfs -C ~/Downloads//Win2019-Evaluation.iso \\
 	--disk ansf-usb.image,bus=usb \\
 	--net=default,model=rtl8139 --net-macvtap=-,model=e1000 \\
 	--diskbus sata
