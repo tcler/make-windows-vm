@@ -14,7 +14,6 @@
 ## Files layout:
 ```
 make-windows-vm/
-├── answer-file-generator.sh
 ├── AnswerFileTemplates
 │   ├── addsdomain
 │   │   ├── autounattend.xml.in -> ../base/autounattend.xml.in
