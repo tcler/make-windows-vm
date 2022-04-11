@@ -536,8 +536,8 @@ ADMINPASSWORD=${ADMINPASSWORD:-Sesame~0pen}
 # Setup Active Directory
 FQDN=$GUEST_HOSTNAME.$DOMAIN
 [[ -n "$PARENT_DOMAIN" ]] && FQDN+=.$PARENT_DOMAIN
-NETBIOS_NAME=$(echo ${DOMAIN//./} | tr '[a-z]' '[A-Z]')
-NETBIOS_NAME=${NETBIOS_NAME:0:15}
+DOMAIN_NETBIOS_NAME=$(echo ${DOMAIN//./} | tr '[a-z]' '[A-Z]')
+DOMAIN_NETBIOS_NAME=${DOMAIN_NETBIOS_NAME:0:15}
 
 # =======================================================================
 # dfs target prepare
@@ -620,7 +620,7 @@ process_ansf() {
 	sed -i -e "s/@ADMINPASSWORD@/$ADMINPASSWORD/g" \
 		-e "s/@ADMINUSER@/$ADMINUSER/g" \
 		-e "s/@AD_DOMAIN@/$DOMAIN/g" \
-		-e "s/@NETBIOS_NAME@/$NETBIOS_NAME/g" \
+		-e "s/@DOMAIN_NETBIOS_NAME@/$DOMAIN_NETBIOS_NAME/g" \
 		-e "s/@FQDN@/$FQDN/g" \
 		-e "s/@PRODUCT_KEY@/$PRODUCT_KEY/g" \
 		-e "s/@WIM_IMAGE_INDEX@/$WIM_IMAGE_INDEX/g" \
@@ -808,7 +808,7 @@ cat <<-EOF | tee $VM_INFO_FILE
 	AD_VM_NAME=$VM_NAME
 	AD_DOMAIN=$DOMAIN
 	AD_FQDN=$FQDN
-	AD_NETBIOS_NAME=$NETBIOS_NAME
+	AD_DOMAIN_NETBIOS_NAME=$DOMAIN_NETBIOS_NAME
 	AD_VNC_URL=$VIRTHOST:$VNCPORT
 	WIN_CIFS_SHARE1=cifstest
 	WIN_CIFS_SHARE2=cifssch

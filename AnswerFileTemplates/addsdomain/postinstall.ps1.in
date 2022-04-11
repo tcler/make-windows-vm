@@ -191,7 +191,7 @@ switch($Stage) {
 		-DomainType "ChildDomain" `
 		-InstallDns:$true `
 		-NewDomainName @AD_DOMAIN@ `
-		-NewDomainNetbiosName @NETBIOS_NAME@ `
+		-NewDomainNetbiosName @DOMAIN_NETBIOS_NAME@ `
 		-ParentDomainName @PARENT_DOMAIN@ `
 		-NoRebootOnCompletion:$true `
 		-Force `
@@ -214,7 +214,7 @@ switch($Stage) {
 
 		# Add KDC
 		Out-Host "`n==> Add KDC"
-		ksetup.exe /AddKDC @NETBIOS_NAME@ @FQDN@
+		ksetup.exe /AddKDC @DOMAIN_NETBIOS_NAME@ @FQDN@
 
 		# Check DNS settings
 		Out-Host "`n==> Check DNS settings"
