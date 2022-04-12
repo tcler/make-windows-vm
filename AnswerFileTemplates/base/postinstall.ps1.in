@@ -105,29 +105,18 @@ switch($Stage) {
 
 		# static ip setup
 		Out-Host "`n==> static ip setup"
-		$STATIC_IP_INT = "@STATIC_IP_INT@"
 		$STATIC_IP_EXT = "@STATIC_IP_EXT@"
+		$STATIC_IP_INT = "@STATIC_IP_INT@"
+		$MAC_EXT = "@VNIC_MAC_EXT@"
+		$MAC_INT = "@VNIC_MAC_INT@"
 
 		#waiting NICs up ready
-		while ($true) {
-			$NicArray = (Get-NetAdapter | Sort-Object -Property InterfaceIndex)
-			if ($NicArray.count -ge 2) {
-				break
-			} else {
-				Start-sleep -s 2
-			}
-		}
-		Foreach ($nic in $NicArray) {
-			$ip = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $nic.InterfaceIndex)[0].IPAddress.Trim()
-			#assume the NIC that connected to internal network use model=rtl8139, and another one use model=e1000
-			if ($nic.ifDesc -like "*8139*") {
-				$NicInt = $nic
-			} elseif ($nic.ifDesc -like "*1000*") {
-				$NicExt = $nic
-			} else {
-				Out-Host "`n---> info: 3rd NIC with ip($ip), desc: $($nic.ifDesc)"
-			}
-		}
+		$NicExt = Get-NetAdapter|Where-Object {$_.MacAddress -like $MAC_EXT.replace(":","?")}
+		$NicInt = Get-NetAdapter|Where-Object {$_.MacAddress -like $MAC_INT.replace(":","?")}
+		$NicRDMA = @(Get-NetAdapterRdma)[0]
+		Out-Host "`n---> NIC ext info: ip($(GetIPAddrFromNic $NicExt)), desc: $($NicExt.ifDesc)"
+		Out-Host "`n---> NIC int info: ip($(GetIPAddrFromNic $NicInt)), desc: $($NicInt.ifDesc)"
+		if ($NicRDMA) {Out-Host "`n---> NIC int info: ip($(GetIPAddrFromNic $NicRDMA)), desc: $($NicRDMA.ifDesc)"}
 
 		if ($STATIC_IP_INT) {
 			$oldIntAddrs = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $NicInt.InterfaceIndex)
@@ -140,12 +129,14 @@ switch($Stage) {
 		}
 
 		# change address of EXT NIC from DHCP to STATIC
-		while ($true) {
+		#while ($true) {
+		while (Get-Command Get-NetIPAddress -errorAction SilentlyContinue) {
 			$oldExtAddrs = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $NicExt.InterfaceIndex)
-			if ($null -ne $oldExtAddrs -and $null -ne $oldExtAddrs[0].IPAddress -and $oldExtAddrs[0].IPAddress -is [string] -and $oldExtAddrs[0].IPAddress.Trim() -notlike "169.254.*") {
+			if ($null -ne $oldExtAddrs -and $null -ne $oldExtAddrs[0].IPAddress `
+				-and $oldExtAddrs[0].IPAddress -is [string] -and $oldExtAddrs[0].IPAddress.Trim() -notlike "169.254.*") {
 				break
 			} else {
-				Start-sleep -s 5
+				Start-Sleep -s 5
 				Out-Host "`n---> renew IP on ext NIC: $($NicExt.ifAlias)"
 				ipconfig /release $NicExt.ifAlias
 				ipconfig /renew $NicExt.ifAlias

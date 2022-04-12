@@ -582,7 +582,7 @@ VM_NET_OPT_EXTERNAL="type=direct,source=$DEFAULT_IF,source_mode=$MacvtapMode,mod
 VM_NET_NAME=${VNET_NAME:-default}
 VNIC_MAC_INT=$(gen_virt_mac)
 echo -e "\n{INFO} vm nic for inside network(net: $VM_NET_NAME, MAC:$VNIC_MAC_INT) ..."
-VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139,mac=$VNIC_MAC_INT"
+VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=e1000,mac=$VNIC_MAC_INT"
 
 # VM hostdev options ...
 nic2pcislot() {
