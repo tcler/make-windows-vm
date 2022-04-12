@@ -54,13 +54,6 @@ Get-Disk |
 	New-Partition -AssignDriveLetter -UseMaximumSize |
 	Format-Volume -FileSystem FAT32 -NewFileSystemLabel "test" -Confirm:$false
 
-$LogPath = "C:"
-
-$TestPath = "C:"
-if (Test-Path -Path F:) {
-	$TestPath = "F:"
-}
-
 $mypath = $MyInvocation.Mycommand.Path
 $ansfDriveLetter = "$((Get-Item $mypath).PSDrive.Name):"
 $RunOnceKey = "HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce"
@@ -198,6 +191,7 @@ if (Test-Path -Path $AutoRunFilePath) {
 }
 
 # complete
+$LogPath = "C:"
 Out-Host "`n==> save ipconfig info and generate install complete file !!!"
 ipconfig | out-file -encoding utf8 $LogPath\@IPCONFIG_LOGF@
 echo "install complete" | out-file -encoding utf8 $LogPath\@INSTALL_COMPLETE_FILE@
