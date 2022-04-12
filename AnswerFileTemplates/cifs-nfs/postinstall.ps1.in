@@ -104,8 +104,8 @@ switch($Stage) {
 
 		# static ip setup
 		Out-Host "`n==> static ip setup"
-		$INT_STATIC_IP = "@INT_STATIC_IP@"
-		$EXT_STATIC_IP = "@EXT_STATIC_IP@"
+		$STATIC_IP_INT = "@STATIC_IP_INT@"
+		$STATIC_IP_EXT = "@STATIC_IP_EXT@"
 
 		#waiting NICs up ready
 		while ($true) {
@@ -128,13 +128,13 @@ switch($Stage) {
 			}
 		}
 
-		if ($INT_STATIC_IP) {
+		if ($STATIC_IP_INT) {
 			$oldIntAddrs = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $NicInt.InterfaceIndex)
 			$IntIpConf = (Get-NetIPConfiguration -InterfaceIndex $NicInt.ifIndex)
 
-			Out-Host "`n---> set static IP($INT_STATIC_IP) on int NIC: $($NicInt.ifAlias)"
+			Out-Host "`n---> set static IP($STATIC_IP_INT) on int NIC: $($NicInt.ifAlias)"
 			New-NetIPAddress -InterfaceIndex $NicInt.InterfaceIndex -AddressFamily IPv4 `
-				-IPAddress $INT_STATIC_IP -PrefixLength $oldIntAddrs[0].PrefixLength `
+				-IPAddress $STATIC_IP_INT -PrefixLength $oldIntAddrs[0].PrefixLength `
 				-DefaultGateway $IntIpConf.IPv4DefaultGateway[0].NextHop
 		}
 
@@ -152,8 +152,8 @@ switch($Stage) {
 		}
 		$extStaticIp = $oldExtAddrs[0].IPAddress.Trim()
 		$extIpConf = (Get-NetIPConfiguration -InterfaceIndex $NicExt.ifIndex)
-		if ($EXT_STATIC_IP) {
-			$extStaticIp=$EXT_STATIC_IP
+		if ($STATIC_IP_EXT) {
+			$extStaticIp=$STATIC_IP_EXT
 		} else {
 			Remove-NetIPAddress -IPAddress $extStaticIp -Confirm:$false
 		}
@@ -268,7 +268,7 @@ switch($Stage) {
 	"afterADSetup" {
 		# do this just after AD has been set up
 		Out-Host "`n==> reset dns ip"
-		$DNS_IPS=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@VNIC_EXT_MAC@'").IPaddress
+		$DNS_IPS=(Get-WmiObject "Win32_NetworkAdapterConfiguration where MACAddress='@VNIC_MAC_EXT@'").IPaddress
 		dnscmd . /ResetListenAddresses $DNS_IPS
 
 		# Install Standalone Root CA

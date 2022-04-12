@@ -96,6 +96,11 @@ get_default_if() {
 	echo $iface
 }
 
+# Generate a random mac address with 54:52:00: prefix
+gen_virt_mac() {
+	echo 54:52:00:${1:-00}$(od -txC -An -N2 /dev/random | tr \  :)
+}
+
 # Eject CDs
 eject_cds() {
 	local vm_name=$1; shift
@@ -383,8 +388,8 @@ while true; do
 	--cpus) VM_CPUS="$2"; shift 2;;
 	--disk-size) VM_DISKSIZE="$2"; shift 2;;
 	--net) VNET_NAME="$2"; shift 2;;
-	--static-ip-ext) EXT_STATIC_IP="$2"; shift 2;;
-	--static-ip-int) INT_STATIC_IP="$2"; shift 2;;
+	--static-ip-ext) STATIC_IP_EXT="$2"; shift 2;;
+	--static-ip-int) STATIC_IP_INT="$2"; shift 2;;
 	--os-variant) VM_OS_VARIANT="$2"; shift 2;;
 	--timeout) VM_TIMEOUT="$2"; shift 2;;
 	--vncport) VNCPORT="$2"; shift 2;;
@@ -569,14 +574,15 @@ verx=$(rpm -E %rhel)
 # VM network parameters
 NetMode=macvtap
 [[ "$NetMode" = macvtap ]] && MacvtapMode=bridge
-DEFAULT_NIC=$(get_default_if dev)
-echo -e "\n{INFO} vm nic for reach outside network(source:$DEFAULT_NIC, NetMode:$NetMode) ..."
-VM_NET_OPT_EXTERNAL="type=direct,source=$DEFAULT_NIC,source_mode=$MacvtapMode,model=e1000"
+DEFAULT_IF=$(get_default_if dev)
+VNIC_MAC_EXT=$(gen_virt_mac 01)
+echo -e "\n{INFO} vm nic for reach outside network(source:$DEFAULT_IF, MAC:$VNIC_MAC_EXT) ..."
+VM_NET_OPT_EXTERNAL="type=direct,source=$DEFAULT_IF,source_mode=$MacvtapMode,model=e1000,mac=$VNIC_MAC_EXT"
 
 VM_NET_NAME=${VNET_NAME:-default}
-HOST_IP=$(virsh net-dumpxml -- $VM_NET_NAME|sed -rn '/^ *<ip address=.([0-9.]+).*$/{s//\1/; p}')
-echo -e "\n{INFO} vm nic for inside network(net: $VM_NET_NAME) ..."
-VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139"
+VNIC_MAC_INT=$(gen_virt_mac)
+echo -e "\n{INFO} vm nic for inside network(net: $VM_NET_NAME, MAC:$VNIC_MAC_INT) ..."
+VM_NET_OPT_INTERNAL="network=$VM_NET_NAME,model=rtl8139,mac=$VNIC_MAC_INT"
 
 # VM hostdev options ...
 nic2pcislot() {
@@ -628,8 +634,8 @@ process_ansf() {
 		-e "s/@INSTALL_COMPLETE_FILE@/$INSTALL_COMPLETE_FILE/g" \
 		-e "s/@AD_FOREST_LEVEL@/$AD_FOREST_LEVEL/g" \
 		-e "s/@AD_DOMAIN_LEVEL@/$AD_DOMAIN_LEVEL/g" \
-		-e "s/@INT_STATIC_IP@/$INT_STATIC_IP/g" \
-		-e "s/@EXT_STATIC_IP@/$EXT_STATIC_IP/g" \
+		-e "s/@STATIC_IP_INT@/$STATIC_IP_INT/g" \
+		-e "s/@STATIC_IP_EXT@/$STATIC_IP_EXT/g" \
 		-e "s/@VIRTHOST@/$VIRTHOST/g" \
 		-e "s/@IPCONFIG_LOGF@/$IPCONFIG_LOGF/g" \
 		-e "s/@GUEST_HOSTNAME@/$GUEST_HOSTNAME/g" \
@@ -640,6 +646,8 @@ process_ansf() {
 		-e "s/@DFS_TARGET@/$DFS_TARGET/g" \
 		-e "s/@HOST_NAME@/$HOSTNAME/g" \
 		-e "s/@AUTORUN_DIR@/$ANSF_AUTORUN_DIR/g" \
+		-e "s/@VNIC_MAC_INT@/$VNIC_MAC_INT/g" \
+		-e "s/@VNIC_MAC_EXT@/$VNIC_MAC_EXT/g" \
 		$destdir/*
 	[[ -z "$PRODUCT_KEY" ]] && {
 		echo -e "{INFO} remove ProductKey node from xml ..."
