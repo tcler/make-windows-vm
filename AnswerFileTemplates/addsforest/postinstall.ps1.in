@@ -10,6 +10,31 @@ Function Out-Host {
 	echo "$str"
 }
 
+Function init-extra-disks {
+	if ([Environment]::OSVersion.Version -lt (new-object 'Version' 6,2)) {
+		$dlist = @("list disk"|diskpart|Select-String -Pattern "Disk (\d+) .*GB *$")
+		for ($i=0; $i -lt $dlist.Count; $i++) {
+			$m = $dlist[$i]
+			$Num = $($m.Matches).Groups[1].Value
+			"Select disk $Num
+				Create partition PRIMARY
+				Format FS=NTFS LABEL=test$($i+1) QUICK
+				Assign
+				Active
+				exit"|diskpart
+		}
+	} else {
+		Get-Disk | Where partitionstyle -eq 'raw' | Out-Host
+		$diskArray = @(Get-Disk | Where partitionstyle -eq 'raw')
+		for ($i=1; $i -le $diskArray.Count; $i++) {
+			$diskArray[$i-1] |
+			Initialize-Disk -PartitionStyle MBR -PassThru |
+			New-Partition -AssignDriveLetter -UseMaximumSize |
+			Format-Volume -FileSystem NTFS -NewFileSystemLabel "test$i" -Confirm:$false
+		}
+	}
+}
+
 Function Unzip-File() {
 	param([string]$ZipFile, [string]$TargetFolder)
 	if (!(Test-Path $TargetFolder)) {
@@ -38,17 +63,14 @@ Function Install-sshd() {
 	#create authorized_keys file
 	$sshConfDir="$HOME\.ssh"
 	New-Item "$sshConfDir" -ItemType Directory -ea 0
-	Get-Content -Path C:\id_*.pub | Set-Content "$sshConfDir\authorized_keys"
-	Get-Content -Path C:\id_*.pub | Set-Content "C:\ProgramData\ssh\administrators_authorized_keys"
+	Get-Content -Path C:\sshkeys\id_*.pub | Set-Content "$sshConfDir\authorized_keys"
+	Get-Content -Path C:\sshkeys\id_*.pub | Set-Content "C:\ProgramData\ssh\administrators_authorized_keys"
 }
 
-Out-Host "==> Start postinstall ..."
-Out-Host "==> Start initialize second disk ..."
-Get-Disk |
-	Where partitionstyle -eq 'raw' |
-	Initialize-Disk -PartitionStyle MBR -PassThru |
-	New-Partition -AssignDriveLetter -UseMaximumSize |
-	Format-Volume -FileSystem NTFS -NewFileSystemLabel "test" -Confirm:$false
+Function GetIPAddrFromNic() {
+	param([System.Object]$Nic, [string]$Family = "IPv4")
+	@(Get-NetIPAddress -AddressFamily $Family -InterfaceIndex $Nic.ifIndex)[0].IPAddress.Trim()
+}
 
 $mypath = $MyInvocation.Mycommand.Path
 $ansfDriveLetter = "$((Get-Item $mypath).PSDrive.Name):"
@@ -92,6 +114,9 @@ switch($Stage) {
 		Out-Host "`n==> add host's hostname to $Env:WinDir\system32\drivers\etc\hosts"
 		echo "" >> $Env:WinDir\system32\drivers\etc\hosts
 		echo "@HOST_IP@ @VIRTHOST@" >> $Env:WinDir\system32\drivers\etc\hosts
+
+		Out-Host "`n==> Start initialize extra disks ..."
+		init-extra-disks
 
 		# static ip setup
 		Out-Host "`n==> static ip setup"
@@ -226,7 +251,7 @@ switch($Stage) {
 $OpenSSHPath = "$ansfDriveLetter\OpenSSH.zip"
 if (Test-Path -Path $OpenSSHPath) {
 	Out-Host "`n==> install and start ssh server"
-	Copy-Item -Path $ansfDriveLetter\id_*.pub -Destination 'C:\'
+	Copy-Item -Path $ansfDriveLetter\sshkeys -Recurse -Destination 'C:\'
 	Install-sshd -Path $OpenSSHPath
 }
 
