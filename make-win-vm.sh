@@ -630,7 +630,6 @@ process_ansf() {
 		-e "s/@FQDN@/$FQDN/g" \
 		-e "s/@PRODUCT_KEY@/$PRODUCT_KEY/g" \
 		-e "s/@WIM_IMAGE_INDEX@/$WIM_IMAGE_INDEX/g" \
-		-e "s/@ANSF_DRIVE_LETTER@/$ANSF_DRIVE_LETTER/g" \
 		-e "s/@INSTALL_COMPLETE_FILE@/$INSTALL_COMPLETE_FILE/g" \
 		-e "s/@AD_FOREST_LEVEL@/$AD_FOREST_LEVEL/g" \
 		-e "s/@AD_DOMAIN_LEVEL@/$AD_DOMAIN_LEVEL/g" \
@@ -688,7 +687,6 @@ eval ls "$@" || {
 \rm -f $ANSF_USB #remove old/exist media file
 media_mp=$(mktemp -d)
 ANSF_MEDIA_PATH=$ANSF_USB
-ANSF_DRIVE_LETTER="D:"
 ANSF_AUTORUN_DIR=tools-drivers
 usbSize=1024M
 create_vdisk $ANSF_USB ${usbSize} vfat
