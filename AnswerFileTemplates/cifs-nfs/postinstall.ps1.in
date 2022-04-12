@@ -255,7 +255,8 @@ switch($Stage) {
 		#reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v forceguest /t REG_DWORD /d 00000000 /f
 
 		# Setup krb5 for NFS/CIFS
-		if ($kdc) {
+		$enablekdc = "@KDC_OPT@"
+		if ($kdc -or $enablekdc) {
 			# Setup AD as Domain Controller
 			Out-Host "`n==> Setup AD as Domain Controller"
 			Remove-WindowsFeature -Name AD-Certificate
