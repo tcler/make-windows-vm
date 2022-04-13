@@ -70,8 +70,8 @@ make-windows-vm/
 ├── README.md
 ├── README-options.md
 └── utils
-    ├── config_ad_client.sh
-    ├── gen_virt_mac.sh
+    ├── config-ad-client.sh
+    ├── gen-virt-mac.sh
     ├── make-samba-server.sh
     ├── test-cert.sh
     ├── test-cifs-nfs.sh
