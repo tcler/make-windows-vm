@@ -1,5 +1,16 @@
 # make-windows-vm
 
+## [declare 2022-04-12]
+almost all functions provided by **make-windows-vm** has been migrated to **kiss-vm** project:  
+
+- [AnswerFileTemplates](https://github.com/tcler/kiss-vm-ns/tree/master/AnswerFileTemplates)  
+- [answer-file-generator.sh](https://github.com/tcler/kiss-vm-ns/blob/master/utils/answer-file-generator.sh)
+- [kiss-vm](https://github.com/tcler/kiss-vm-ns/blob/master/kiss-vm)  
+
+now project **make-windows-vm** will enter maintenance mode and no new features will be developed.
+
+---
+
 ## Why?
  There are some automated tests related to windows OS in our work. So we need to find ways to automate the installation and configuration of the windows OS, that's it.
  
