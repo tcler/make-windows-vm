@@ -1,13 +1,40 @@
 # make-windows-vm
 
 ## [declare 2022-04-12]
-almost all functions provided by **make-windows-vm** has been migrated to **kiss-vm** project:  
+almost all functions provided by **make-windows-vm** have been migrated to **kiss-vm** project:  
 
-- [AnswerFileTemplates](https://github.com/tcler/kiss-vm-ns/tree/master/AnswerFileTemplates)  
-- [answer-file-generator.sh](https://github.com/tcler/kiss-vm-ns/blob/master/utils/answer-file-generator.sh)
-- [kiss-vm](https://github.com/tcler/kiss-vm-ns/blob/master/kiss-vm)  
+- [**AnswerFileTemplates**](https://github.com/tcler/kiss-vm-ns/tree/master/AnswerFileTemplates)  
+- [**answer-file-generator.sh**](https://github.com/tcler/kiss-vm-ns/blob/master/utils/answer-file-generator.sh)
+- [**kiss-vm**](https://github.com/tcler/kiss-vm-ns/blob/master/kiss-vm)  
 
-now project **make-windows-vm** will enter maintenance mode and no new features will be developed.
+now project **make-windows-vm** will enter maintenance mode and no new features will be developed.  
+how to create windows vm by **kiss-vm**:  
+```
+#install kiss-vm
+curl -s https://raw.githubusercontent.com/tcler/kiss-vm-ns/master/utils/kiss-update.sh|sudo bash #or git clone && sudo make
+sudo vm prepare [--user=anotherUser]
+
+#create windows vm
+vm create Windows-server-2022   -C ~/Downloads/Win2022-Evaluation.iso   --win-auto
+vm create Windows-server-2019   -C ~/Downloads/Win2019-Evaluation.iso   --win-auto=cifs-nfs
+vm create Windows-server-2012r2 -C ~/Downloads/Win2012r2-Evaluation.iso --win-auto=addsforest
+vm create Windows-server-2012r2 -C ~/Downloads/Win2012r2.iso --win-auto --win-key="${key:-W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9}" 
+vm create Windows-11 -C ~/Downloads/Win11-Evaluation.iso --win-auto  
+vm create Windows-10 -C ~/Downloads/Win10-Evaluation.iso --win-auto  
+vm create Windows-7  -C ~/Downloads/Win7-cn.iso --win-auto -xdisk 20,bus=virtio -n win7-test
+
+#a more complex example
+vm create Windows-server-2019 -n win2019-rdma \
+        -C $BASE_URL/windows-images/Win2019-Evaluation.iso \
+        --osv win2k19 \
+        --vcpus sockets=1,cores=4 --msize 8192 --dsize 80 \
+        --hostif=ib6 \
+        --win-domain win-rdma.test \
+        --win-download-url=http://www.mellanox.com/downloads/WinOF/MLNX_VPI_WinOF-5_50_54000_All_win2019_x64.exe \
+        --win-run='./MLNX_VPI_WinOF-5_50_54000_All_win2019_x64.exe /S /V\"/qb /norestart\"' \
+        --win-run-post='ipconfig /all; ibstat' \
+        --win-auto=cifs-nfs --force
+```
 
 ---
 
