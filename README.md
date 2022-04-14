@@ -209,6 +209,11 @@ sudo yum install libxml2-devel fuse-devel
  - Install winlib for source (https://wimlib.net/):
 ```
 git clone git://wimlib.net/wimlib && cd wimlib && ./confiure && make && sudo make install
+
+#[update 2022-04-14] git source has changed, there's not configure file any more:
+tgzf=wimlib-1.13.5.tar.gz; wget -4 https://wimlib.net/downloads/$tgzf && tar zxf $tgzf
+(cd ${tgzf%.tar.gz} && ./configure && make && make install)
+# see also: https://github.com/tcler/kiss-vm-ns/blob/master/utils/wimlib-install.sh
 ```
  - Mount your windows install ISO file:
 ```
