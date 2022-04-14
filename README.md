@@ -21,7 +21,7 @@ vm create Windows-server-2012r2 -C ~/Downloads/Win2012r2-Evaluation.iso --win-au
 vm create Windows-server-2012r2 -C ~/Downloads/Win2012r2.iso --win-auto --win-key="${key:-W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9}" 
 vm create Windows-11 -C ~/Downloads/Win11-Evaluation.iso --win-auto  
 vm create Windows-10 -C ~/Downloads/Win10-Evaluation.iso --win-auto  
-vm create Windows-7  -C ~/Downloads/Win7-cn.iso --win-auto -xdisk 20,bus=virtio -n win7-test
+vm create Windows-7  -C ~/Downloads/cn_windows_7_ultimate_with_sp1_x64_dvd_u_677408.iso --win-auto -xdisk 20,bus=virtio -n win7-test
 
 #a more complex example
 vm create Windows-server-2019 -n win2019-rdma \
