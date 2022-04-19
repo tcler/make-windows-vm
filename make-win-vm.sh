@@ -656,6 +656,10 @@ process_ansf() {
 
 	[[ -n "$OpenSSHUrl" ]] && curl_download_x $destdir/OpenSSH.zip $OpenSSHUrl
 	mkdir $destdir/sshkeys
+	[[ -f ~/.ssh/id_rsa && -f ~/.ssh/id_rsa.pub ]] || {
+		echo -e 'y\n' | ssh-keygen -q -t rsa -f ~/.ssh/id_rsa -N ''; }
+	[[ -f ~/.ssh/id_ecdsa && -f ~/.ssh/id_ecdsa.pub ]] || {
+		echo -e 'y\n' | ssh-keygen -q -t ecdsa -f ~/.ssh/id_ecdsa -N ''; }
 	cp $SUDOUSERHOME/.ssh/id_*.pub $destdir/sshkeys/. 2>/dev/null
 
 	autorundir=$destdir/$ANSF_AUTORUN_DIR
