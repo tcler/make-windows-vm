@@ -111,7 +111,7 @@ sudo yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noa
 ```
 ```
 sudo yum install libvirt libvirt-client virt-install virt-viewer qemu-kvm dosfstools \
- openldap-clients dos2unix unix2dos glibc-common expect bind-utils
+ openldap-clients dos2unix unix2dos glibc-common expect bind-utils udisks2
 ```
 
 ## Steps:
