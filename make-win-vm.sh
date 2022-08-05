@@ -621,7 +621,10 @@ VM_RAM=${VM_RAM:-4096}
 # ====================================================================
 process_ansf() {
 	local destdir=$1; shift
-	for f; do fname=${f##*/}; cp ${f} $destdir/${fname%.in}; done
+	local flist=
+
+	flist=$(for f; do [[ -d "$f" ]] && ls "${f}" || ls ${f}; done)
+	for f in $flist; do fname=${f##*/}; cp ${f} $destdir/${fname%.in}; done
 
 	sed -i -e "s/@ADMINPASSWORD@/$ADMINPASSWORD/g" \
 		-e "s/@ADMINUSER@/$ADMINUSER/g" \
