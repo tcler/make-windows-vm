@@ -107,7 +107,7 @@ Generally, answer file is used to deploy windows automatically. Usages are liste
 
 ##### On RHEL/CentOS:
 ```
-sudo yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+sudo yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-$(rpm -E %rhel).noarch.rpm
 ```
 ```
 sudo yum install libvirt libvirt-client virt-install virt-viewer qemu-kvm dosfstools \
