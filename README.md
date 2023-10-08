@@ -1,7 +1,7 @@
 # make-windows-vm
 
 ## [declare 2022-04-12]
-almost all functions provided by **make-windows-vm** have been migrated to **kiss-vm** project:  
+almost all functions provided by **make-windows-vm** have been migrated to [**kiss-vm**](https://github.com/tcler/kiss-vm-ns/blob/master/kiss-vm) project:  
 
 - [**AnswerFileTemplates**](https://github.com/tcler/kiss-vm-ns/tree/master/AnswerFileTemplates)  
 - [**answer-file-generator.sh**](https://github.com/tcler/kiss-vm-ns/blob/master/utils/answer-file-generator.sh)
